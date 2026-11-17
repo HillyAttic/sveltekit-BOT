@@ -1,10 +1,8 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { getFirestore } from '#lib/firebase-admin'
-import { uploadFile } from '#lib/storage-service'
 import { normalizePhone } from '#lib/phone'
 import { verifyAdminToken, unauthorizedResponse } from '#lib/auth-middleware'
-import { getClientFolderPaths } from '#lib/document-categories'
 
 export const GET: RequestHandler = async ({ request }) => {
   const auth = await verifyAdminToken(request)
@@ -59,14 +57,6 @@ export const POST: RequestHandler = async ({ request }) => {
     if (gstNumber) docData.gstNumber = gstNumber
 
     const docRef = await db.collection('users').add(docData)
-
-    // Scaffold the JPCO folder structure in Firebase Storage
-    const placeholder = Buffer.from('')
-    await Promise.all(
-      getClientFolderPaths(name).map((p) =>
-        uploadFile(placeholder, p, 'application/octet-stream')
-      )
-    )
 
     return json({ id: docRef.id, name, phones: normalizedPhones, gstNumber }, { status: 201 })
   } catch (error) {

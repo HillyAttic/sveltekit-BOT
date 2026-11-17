@@ -16,25 +16,6 @@ export async function generateSignedUrl(filePath: string): Promise<string> {
 }
 
 /**
- * Upload a file to Firebase Storage.
- */
-export async function uploadFile(
-  buffer: Buffer,
-  destination: string,
-  contentType?: string
-): Promise<string> {
-  const bucket = getStorage().bucket()
-  const file = bucket.file(destination)
-
-  await file.save(buffer, {
-    contentType: contentType || 'application/octet-stream',
-    metadata: { cacheControl: 'public, max-age=31536000' },
-  })
-
-  return destination
-}
-
-/**
  * Delete a file from Firebase Storage.
  */
 export async function deleteFile(filePath: string): Promise<void> {

@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sveltekit-bot",
+  "main": ".svelte-kit/cloudflare/_worker.js",
+  "compatibility_date": "2026-11-01",
+  // nodejs_compat: Buffer/crypto used by auth and firebase-admin.
+  // nodejs_compat_populate_process_env: makes wrangler vars/secrets visible as process.env.
+  "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".svelte-kit/cloudflare"
+  },
+  "observability": { "enabled": true },
+  "vars": {
+    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": "bot-edventure.firebasestorage.app"
+  }
+}

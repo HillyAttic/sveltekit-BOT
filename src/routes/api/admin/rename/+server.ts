@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit'
-import type { Query } from 'firebase-admin/firestore'
+import type { Query } from '#lib/firebase-admin'
 import type { RequestHandler } from './$types'
 import { getFirestore } from '#lib/firebase-admin'
 import { verifyAdminToken, unauthorizedResponse } from '#lib/auth-middleware'

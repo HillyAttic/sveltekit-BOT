@@ -36,30 +36,6 @@ export const CATEGORIES: Record<string, { fiscalYears: string[]; subCategories: 
 
 export const CATEGORY_NAMES = Object.keys(CATEGORIES)
 
-/**
- * Returns all leaf folder placeholder paths for a new client.
- * Firebase Storage has no empty folders, so we create a .keep file at each leaf.
- */
-export function getClientFolderPaths(clientName: string): string[] {
-  const paths: string[] = []
-  for (const [category, config] of Object.entries(CATEGORIES)) {
-    if (config.fiscalYears.length === 0) {
-      paths.push(`JPCO Client Documents/${clientName}/${category}/.keep`)
-    } else if (config.subCategories.length === 0) {
-      for (const fy of config.fiscalYears) {
-        paths.push(`JPCO Client Documents/${clientName}/${category}/${fy}/.keep`)
-      }
-    } else {
-      for (const fy of config.fiscalYears) {
-        for (const sc of config.subCategories) {
-          paths.push(`JPCO Client Documents/${clientName}/${category}/${fy}/${sc}/.keep`)
-        }
-      }
-    }
-  }
-  return paths
-}
-
 export function buildStoragePath(
   clientName: string,
   category: string,

@@ -1,4 +1,4 @@
-import type { QueryDocumentSnapshot } from 'firebase-admin/firestore'
+import type { QueryDocumentSnapshot } from './firebase-admin'
 import { getFirestore } from './firebase-admin'
 import { normalizePhone } from './phone'
 

@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-vercel'
+import adapter from '@sveltejs/adapter-cloudflare'
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte'
 import { withPwa } from '@vite-pwa/sveltekit'
 import { defineConfig } from 'vite'
