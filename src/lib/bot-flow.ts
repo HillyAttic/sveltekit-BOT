@@ -80,14 +80,14 @@ export interface FlowResult {
 // ---------------------------------------------------------------------------
 type ProfileField = 'employeeId' | 'name' | 'city' | 'managerName'
 
-const PROFILE_FIELDS: ProfileField[] = ['employeeId', 'name', 'city', 'managerName']
+const PROFILE_FIELDS: ProfileField[] = ['employeeId', 'name', 'managerName', 'city']
 
 const PROFILE_PROMPTS: Record<ProfileField, string> = {
   employeeId:
     "Welcome to Edventure! Let's get started with your learning journey.\n\nPlease provide the following details.\n\n1/4 — Employee ID:",
   name: '2/4 — Employee Name:',
-  city: '3/4 — City:',
-  managerName: '4/4 — Manager Name:',
+  managerName: '3/4 — Manager Name:',
+  city: '4/4 — City:',
 }
 
 const CONSENT_TEXT =
@@ -130,10 +130,11 @@ function askRegistration(session: BotSession, field: ProfileField, note?: string
   }
 }
 
-function consentPrompt(session: BotSession): FlowResult {
+function consentPrompt(session: BotSession, note?: string): FlowResult {
+  const body = note ? `${note}\n\n${CONSENT_TEXT}` : CONSENT_TEXT
   return {
-    message: CONSENT_TEXT,
-    interactive: { type: 'button', body: CONSENT_TEXT, buttons: CONSENT_BUTTONS },
+    message: body,
+    interactive: { type: 'button', body, buttons: CONSENT_BUTTONS },
     session: { ...session, currentStep: 'consent' },
   }
 }
@@ -577,16 +578,14 @@ export async function processMessage(
 
     const nextField = PROFILE_FIELDS[PROFILE_FIELDS.indexOf(field) + 1]
     const updated = { ...session, registration }
+    const cityNote =
+      field === 'city'
+        ? `Thank you! Your registered city is ${registration.city}, and your assigned zone is ${registration.zone || 'Not assigned'}.`
+        : undefined
 
-    if (nextField) {
-      const cityNote =
-        field === 'city'
-          ? `Thank you! Your registered city is ${registration.city}, and your assigned zone is ${registration.zone || 'Not assigned'}.`
-          : undefined
-      return askRegistration(updated, nextField, cityNote)
-    }
+    if (nextField) return askRegistration(updated, nextField, cityNote)
 
-    return consentPrompt(updated)
+    return consentPrompt(updated, cityNote)
   }
 
   // Assessment question

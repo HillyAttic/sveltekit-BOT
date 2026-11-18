@@ -92,6 +92,9 @@ describe('updated WhatsApp flow', () => {
     expect(step.session?.currentStep).toBe('registration_name')
 
     step = await processMessage('91999', 'Ravi Sharma', step.session, undefined, null)
+    expect(step.session?.currentStep).toBe('registration_managerName')
+
+    step = await processMessage('91999', 'Asha Rao', step.session, undefined, null)
     expect(step.session?.currentStep).toBe('registration_city')
 
     step = await processMessage('91999', 'Atlantis', step.session, undefined, null)
@@ -99,11 +102,8 @@ describe('updated WhatsApp flow', () => {
     expect(step.message).toContain('Delhi')
 
     step = await processMessage('91999', 'Delhi', step.session, undefined, null)
-    expect(step.session?.currentStep).toBe('registration_managerName')
-    expect(step.message).toContain('zone is North')
-
-    step = await processMessage('91999', 'Asha Rao', step.session, undefined, null)
     expect(step.session?.currentStep).toBe('consent')
+    expect(step.message).toContain('zone is North')
     expect(step.interactive?.type).toBe('button')
 
     step = await processMessage('91999', 'no', step.session, 'consent_no', null)
@@ -114,8 +114,8 @@ describe('updated WhatsApp flow', () => {
     step = await processMessage('91999', 'hi', null, undefined, null)
     step = await processMessage('91999', 'EMP-42', step.session, undefined, null)
     step = await processMessage('91999', 'Ravi Sharma', step.session, undefined, null)
-    step = await processMessage('91999', 'Delhi', step.session, undefined, null)
     step = await processMessage('91999', 'Asha Rao', step.session, undefined, null)
+    step = await processMessage('91999', 'Delhi', step.session, undefined, null)
 
     step = await processMessage('91999', 'yes', step.session, 'consent_yes', null)
     expect(savedProfile).toHaveBeenCalledWith(

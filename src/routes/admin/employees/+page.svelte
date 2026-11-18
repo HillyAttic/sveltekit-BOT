@@ -2,7 +2,16 @@
   import { onMount } from 'svelte'
   import { auth } from '#lib/auth.svelte'
 
-  interface Employee { id: string; name: string; phones: string[]; createdAt?: string }
+  interface Employee {
+    id: string
+    employeeId?: string
+    name: string
+    managerName?: string
+    city?: string
+    zone?: string
+    phones: string[]
+    createdAt?: string
+  }
   let employees = $state<Employee[]>([])
   let loading = $state(true)
   let showForm = $state(false)
@@ -65,12 +74,16 @@
     <div class="bg-white border border-surface-border rounded overflow-hidden">
       <table class="w-full text-sm">
         <thead class="bg-surface">
-          <tr><th class="px-3 py-2 text-left">Name</th><th class="px-3 py-2 text-left">Phone</th><th class="px-3 py-2 text-left">Action</th></tr>
+          <tr><th class="px-3 py-2 text-left">Employee ID</th><th class="px-3 py-2 text-left">Name</th><th class="px-3 py-2 text-left">Manager Name</th><th class="px-3 py-2 text-left">City</th><th class="px-3 py-2 text-left">Zone</th><th class="px-3 py-2 text-left">Phone</th><th class="px-3 py-2 text-left">Action</th></tr>
         </thead>
         <tbody>
           {#each employees as e (e.id)}
             <tr class="border-t border-surface-border">
+              <td class="px-3 py-2 font-mono text-xs">{e.employeeId || '—'}</td>
               <td class="px-3 py-2">{e.name}</td>
+              <td class="px-3 py-2">{e.managerName || '—'}</td>
+              <td class="px-3 py-2">{e.city || '—'}</td>
+              <td class="px-3 py-2">{e.zone || '—'}</td>
               <td class="px-3 py-2 font-mono text-xs">{e.phones?.[0] || '—'}</td>
               <td class="px-3 py-2"><button onclick={() => remove(e.id)} class="text-xs text-danger hover:underline">Delete</button></td>
             </tr>
