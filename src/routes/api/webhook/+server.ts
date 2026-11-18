@@ -8,14 +8,13 @@ import {
   findAllUsersByPhone,
   getBotSession,
   saveBotSession,
+  clearBotSession,
 } from '#lib/document-service'
 import { normalizePhone } from '#lib/phone'
 import {
   sendMessage,
-  sendDocument,
   sendInteractiveButtons,
   sendInteractiveList,
-  sleep,
 } from '#lib/message-sender'
 import { processMessage } from '#lib/bot-flow'
 import { recordChatActivity, closeChatSession } from '#lib/chat-logger'
@@ -114,52 +113,46 @@ async function handleMessage(parsed: {
     const users = await findAllUsersByPhone(normalizedPhone)
     console.log(`Users found for ${normalizedPhone}: ${users.length}`)
 
-    // Unknown numbers are not rejected: saying Hi starts the onboarding flow,
-    // which creates their employee record after collecting the four details.
+    // Unknown numbers are not rejected: saying Hi starts registration, which
+    // creates the employee record once consent is given.
     const session = await getBotSession(normalizedPhone)
-    const availableClients = users.map((u) => ({
-      id: u.id,
-      name: u.name,
-      employeeId: u.employeeId,
-      city: u.city,
-      managerName: u.managerName,
-    }))
+    const user = users[0]
+      ? {
+          id: users[0].id,
+          name: users[0].name,
+          employeeId: users[0].employeeId ?? '',
+          city: users[0].city ?? '',
+          zone: users[0].zone ?? '',
+          managerName: users[0].managerName ?? '',
+          consentStatus: users[0].consentStatus,
+        }
+      : null
+
     const result = await processMessage(
       normalizedPhone,
       sanitizedText,
       session,
       interactiveReplyId,
-      availableClients
+      user
     )
 
     if (result.session) {
       await saveBotSession(normalizedPhone, result.session)
+    } else {
+      // Registration declined or no active flow — start clean next time.
+      await clearBotSession(normalizedPhone)
     }
 
     const isGreeting =
       sanitizedText.toLowerCase().trim() === 'hi' || sanitizedText.toLowerCase().trim() === 'hello'
-    const isRestart = ['0', 'main_menu', 'select_category'].includes(
-      (interactiveReplyId || sanitizedText).toLowerCase().trim()
-    )
 
     if (isGreeting) {
       await closeChatSession(normalizedPhone)
-      await recordChatActivity(normalizedPhone, {
-        clientId: users[0]?.id,
-        clientName: users[0]?.name,
-      })
-    } else if (isRestart && result.session) {
-      await closeChatSession(normalizedPhone)
-      await recordChatActivity(normalizedPhone, {
-        clientId: result.session.selectedClientId || users[0]?.id,
-        clientName: result.session.selectedClientName || users[0]?.name,
-      })
-    } else {
-      await recordChatActivity(normalizedPhone, {
-        clientId: result.session?.selectedClientId,
-        clientName: result.session?.selectedClientName,
-      })
     }
+    await recordChatActivity(normalizedPhone, {
+      clientId: result.session?.employee?.id ?? user?.id,
+      clientName: result.session?.employee?.name ?? user?.name,
+    })
 
     if (result.interactive) {
       if (result.interactive.type === 'button') {
@@ -172,30 +165,8 @@ async function handleMessage(parsed: {
           result.interactive.sections
         )
       }
-    } else if (result.documents && result.documents.length > 0) {
-      for (let i = 0; i < result.documents.length; i++) {
-        if (i > 0) await sleep(1000)
-        const doc = result.documents[i]
-        await sendDocument(from, doc.url, doc.filename, doc.caption)
-      }
-    } else if (result.document) {
-      await sendDocument(from, result.document.url, result.document.filename, result.document.caption)
     } else if (result.message) {
       await sendMessage(from, result.message)
-    }
-
-    if (result.followUp) {
-      await sleep(1500)
-      if (result.followUp.type === 'button') {
-        await sendInteractiveButtons(from, result.followUp.body, result.followUp.buttons)
-      } else if (result.followUp.type === 'list') {
-        await sendInteractiveList(
-          from,
-          result.followUp.body,
-          result.followUp.buttonText,
-          result.followUp.sections
-        )
-      }
     }
   } catch (error) {
     console.error('Error processing message:', error)

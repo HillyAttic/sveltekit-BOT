@@ -1,0 +1,1114 @@
+# EDVENTURE – COMPLETE WHATSAPP CHATBOT & LEARNING MANAGEMENT SYSTEM
+
+## Project Overview
+
+Design and develop a complete, dynamic WhatsApp-based learning and assessment management platform for Edventure.
+
+The platform will consist of two interconnected systems:
+
+1. **Admin Panel:** A centralized dashboard where administrators manage employees, video content, learning modules, assessments, questions, answer keys, score calculations, scorecards, certificates, reminders, and reports.
+
+2. **WhatsApp Chatbot:** An automated learning assistant through which employees register, receive learning videos, complete assessments, receive automatically generated scorecards, and progress through multiple learning modules.
+
+The entire system must be dynamic and admin-controlled. Administrators should be able to manage the complete learning journey through the Admin Panel without requiring developers to change the chatbot code whenever a new video, assessment, question, or reminder schedule is added.
+
+---
+
+# PART 1: COMPLETE WHATSAPP CHATBOT FLOW
+
+## STAGE 1: EMPLOYEE REGISTRATION
+
+### 1. Initial Interaction
+
+The employee initiates the conversation by sending:
+
+"Hi"
+
+The chatbot responds:
+
+"Welcome to Edventure! Let's get started with your learning journey. Please provide the following details."
+
+### 2. Collect Employee Information
+
+Collect the following information sequentially:
+
+1. Employee ID
+2. Employee Name
+3. City
+4. Manager Name
+
+The chatbot should validate the entered information.
+
+Validation requirements:
+- Employee ID should follow the configured format.
+- Name should not be empty.
+- City should match the configured city list.
+- Manager Name should not be empty.
+
+If invalid information is entered, ask the employee to provide the correct information again.
+
+### 3. City and Zone Mapping
+
+Automatically map the selected city to its corresponding zone.
+
+| City | Zone |
+|---|---|
+| Delhi | North |
+| Mumbai | West |
+| Kolkata | East |
+| Chennai | South |
+| Indore | Central |
+
+Display a confirmation message.
+
+Example:
+
+"Thank you! Your registered city is Delhi, and your assigned zone is North."
+
+The city-zone mapping should be editable from the Admin Panel.
+
+---
+
+## STAGE 2: CONSENT MANAGEMENT
+
+After registration, ask:
+
+"Do you consent to Edventure recording and processing your registration information for managing your learning journey and assessments?"
+
+Display two options:
+
+- YES – I Consent
+- NO – I Do Not Consent
+
+### If YES:
+- Record consent acceptance.
+- Save the employee registration details.
+- Store the information in the database.
+- Update the Admin Panel.
+- Activate the employee account.
+- Proceed to the learning journey.
+
+### If NO:
+- Do not store the employee's registration information.
+- Do not initiate the learning journey.
+- Display a polite closing message.
+- Retain only the minimum operational information permitted by the applicable privacy policy.
+
+Store consent timestamp and consent version for accepted registrations.
+
+---
+
+# PART 2: ADMIN-CONTROLLED LEARNING MANAGEMENT SYSTEM
+
+## STAGE 3: DYNAMIC VIDEO MANAGEMENT
+
+Create a dedicated Admin Panel section called:
+
+**Video & Learning Management**
+
+Administrators must be able to add, edit, delete, activate, deactivate, and reorder videos.
+
+### Video Configuration Fields
+
+- Video Title
+- Video Description
+- Video URL
+- Video Sequence Number
+- Associated Learning Module
+- Associated Assessment
+- Video Duration (Optional)
+- Status: Active / Inactive
+
+### Video Hosting Requirements
+
+The Admin Panel must provide a URL input field where administrators can paste externally hosted video links.
+
+Supported hosting sources:
+
+1. Google Drive
+2. Firebase Storage
+
+Important requirements:
+
+- Do not provide a direct video upload option in the Admin Panel.
+- The administrator can only paste the externally hosted video URL.
+- Validate the URL before saving.
+- Check link accessibility and sharing permissions.
+- Store the URL in the database.
+- Allow administrators to preview the video before publishing.
+
+### WhatsApp Video Delivery
+
+When a video is scheduled for an employee:
+
+1. Fetch the configured video URL from the database.
+2. Attempt native WhatsApp video delivery if the file format, size, URL accessibility, and WhatsApp API requirements permit it.
+3. If native playback is not supported, send a clickable video link.
+4. The link should open the video in the most suitable available player.
+
+Prefer playback within WhatsApp when supported, but provide a reliable external playback fallback.
+
+Do not assume that all Google Drive or Firebase links will play natively inside WhatsApp.
+
+---
+
+## STAGE 4: DYNAMIC LEARNING SEQUENCE BUILDER
+
+Create a Learning Journey Builder that allows administrators to configure an unlimited number of learning modules.
+
+Each learning module must contain:
+
+- Video
+- Assessment
+- Scorecard
+- Completion Status
+
+### Example Learning Sequence
+
+<escape>MODULE 1
+  ↓
+VIDEO 1
+  ↓
+VIDEO COMPLETION
+  ↓
+ASSESSMENT 1
+  ↓
+AUTOMATIC EVALUATION
+  ↓
+SCORECARD 1
+
+MODULE 2
+  ↓
+VIDEO 2
+  ↓
+VIDEO COMPLETION
+  ↓
+ASSESSMENT 2
+  ↓
+AUTOMATIC EVALUATION
+  ↓
+SCORECARD 2
+
+MODULE 3
+  ↓
+VIDEO 3
+  ↓
+VIDEO COMPLETION
+  ↓
+ASSESSMENT 3
+  ↓
+AUTOMATIC EVALUATION
+  ↓
+SCORECARD 3</escape>
+
+Continue the sequence for all modules configured by the administrator.
+
+### Admin Controls
+
+Provide the following options:
+
+- Add New Module
+- Edit Module
+- Delete Module
+- Reorder Modules
+- Add Video
+- Associate Assessment
+- Enable / Disable Module
+- Save as Draft
+- Publish Learning Journey
+
+The system must automatically fetch the next active module once the employee satisfies the configured completion conditions of the previous module.
+
+The sequence must not be hardcoded.
+
+---
+
+# PART 3: VIDEO COMPLETION TRACKING
+
+## STAGE 5: VIDEO DELIVERY AND COMPLETION
+
+After successful registration and consent, the chatbot welcomes the employee.
+
+Message:
+
+"Welcome to Edventure! Let's begin your learning journey. Here's your first video for today."
+
+The chatbot fetches Video 1 from the Admin Panel and sends it to the employee.
+
+Record the following:
+
+- Employee ID
+- Module ID
+- Video ID
+- Video URL
+- Video Delivery Timestamp
+- Delivery Status
+- Completion Status
+
+### Video Completion Instruction
+
+After delivering the video, send:
+
+"Please watch the complete video and type FINISH once you have completed watching it."
+
+### Decision: Has the Employee Sent FINISH?
+
+**YES:**
+- Update video status to Completed (Self-reported).
+- Record completion timestamp.
+- Cancel all pending reminders.
+- Unlock the associated assessment.
+- Trigger assessment delivery.
+
+**NO:**
+- Keep the video status as Pending.
+- Activate the Reminder Management Engine.
+- Continue checking completion status.
+
+### Important Technical Consideration
+
+WhatsApp does not automatically provide reliable completion tracking for externally hosted video links.
+
+The FINISH response should be treated as self-reported completion.
+
+If verified playback tracking is required in the future, integrate a video player or hosting platform that provides authenticated watch-progress events.
+
+---
+
+# PART 4: CUSTOMIZABLE AUTOMATED REMINDER SYSTEM
+
+## STAGE 6: REMINDER MANAGEMENT
+
+Create a dedicated **Reminder Management** section in the Admin Panel.
+
+The administrator must have complete control over reminder schedules, timing, frequency, messages, and activation.
+
+### 1. Default Reminder Schedule
+
+Use the following as the initial default configuration:
+
+| Reminder | Time After Video Delivery |
+|---|---|
+| Reminder 1 | 20 Minutes |
+| Reminder 2 | 1 Hour |
+| Reminder 3 | 4 Hours |
+| Reminder 4 | 6 Hours |
+| Reminder 5 | 24 Hours |
+
+These are only default values. They must be editable.
+
+### 2. Admin Customization Options
+
+Allow administrators to:
+
+- Enable / Disable the complete reminder system.
+- Add new reminders.
+- Edit reminder timings.
+- Delete reminders.
+- Change reminder sequence.
+- Configure reminder frequency.
+- Set the maximum number of reminders.
+- Customize each reminder message.
+- Enable / Disable individual reminders.
+- Set different reminder schedules for different learning programs.
+- Configure reminder schedules globally or for individual modules.
+- Save reminder configurations as reusable presets.
+
+### 3. Reminder Timing Configuration
+
+Allow administrators to select a time unit:
+
+- Minutes
+- Hours
+- Days
+
+Example custom configuration:
+
+| Reminder | Configured Timing |
+|---|---|
+| First Reminder | 30 Minutes |
+| Second Reminder | 2 Hours |
+| Third Reminder | 5 Hours |
+| Fourth Reminder | 12 Hours |
+| Fifth Reminder | 24 Hours |
+
+The administrator should also be able to add more reminder intervals.
+
+### 4. Reminder Execution Logic
+
+When a video is delivered:
+
+1. Record the original delivery timestamp.
+2. Fetch the active reminder configuration.
+3. Schedule the reminders.
+4. Before every reminder, check the latest video completion status.
+
+Decision:
+
+**Has the employee sent FINISH?**
+
+If YES:
+- Immediately cancel all remaining reminders.
+- Update the video completion status.
+- Record completion timestamp.
+- Trigger the corresponding assessment.
+- Do not send additional reminders.
+
+If NO:
+- Send the configured reminder.
+- Update reminder history.
+- Continue to the next scheduled reminder.
+
+If FINISH is received between two reminders, the system must immediately stop the remaining reminder jobs.
+
+### 5. Custom Reminder Messages
+
+Allow administrators to customize messages.
+
+Example:
+
+First Reminder:
+
+"Hi! Your Edventure learning video is still pending. Please watch the video and type FINISH once completed."
+
+Second Reminder:
+
+"Friendly reminder! Complete your learning video to unlock the assessment."
+
+Final Reminder:
+
+"Your learning activity is still incomplete. Please complete the video and type FINISH to continue your learning journey."
+
+Support dynamic variables:
+
+- Employee Name
+- Video Title
+- Module Number
+- Reminder Number
+- Video Link
+
+### 6. Reminder Tracking
+
+Display the following in the Admin Panel:
+
+- Employee Name
+- Employee ID
+- Video Title
+- Video Delivery Time
+- Scheduled Reminder Time
+- Actual Reminder Time
+- Reminder Number
+- Delivery Status
+- Completion Status
+- Next Reminder Time
+
+Statuses:
+
+- Scheduled
+- Sent
+- Delivered
+- Failed
+- Cancelled
+- Completed
+
+### 7. Technical Requirements
+
+- Calculate reminders from the original video delivery timestamp.
+- Use a background job scheduler or message queue.
+- Check the latest completion status before every reminder.
+- Prevent duplicate reminders.
+- Cancel remaining reminders when FINISH is received.
+- Record failed reminder attempts.
+- Support configurable retry policies.
+- Define whether existing scheduled reminders are updated when an admin changes the configuration.
+- Respect WhatsApp's 24-hour customer service window and approved template requirements outside that window.
+
+---
+
+# PART 5: DYNAMIC ASSESSMENT BUILDER
+
+## STAGE 7: ASSESSMENT CREATION FROM ADMIN PANEL
+
+Create a dedicated section called:
+
+**Assessment Builder**
+
+Administrators must be able to create assessments for every video or learning module.
+
+The assessment must be dynamically delivered through the chatbot.
+
+### Supported Question Formats
+
+**1. Multiple Choice Questions (MCQ)**
+- Single correct answer.
+- 3–5 options.
+- Admin selects the correct answer.
+
+**2. Multiple Select Questions**
+- Multiple correct answers.
+- Admin configures the correct answer combination.
+
+**3. True / False**
+- Two options.
+- Admin selects the correct answer.
+
+**4. Short Answer**
+- Text-based responses.
+- Configurable expected answers or keywords.
+- Manual evaluation option.
+
+**5. Descriptive Questions**
+- Long text responses.
+- Configurable maximum marks.
+- Manual evaluation by an authorized administrator.
+
+**6. Rating / Scale-Based Questions**
+- Numeric or predefined options.
+- Configurable scoring rules.
+
+### Assessment Configuration
+
+Allow administrators to configure:
+
+- Assessment Title
+- Assessment Description
+- Associated Video
+- Associated Module
+- Total Questions
+- Marks Per Question
+- Negative Marking
+- Passing Percentage
+- Time Limit
+- Number of Attempts
+- Randomize Questions
+- Randomize Answer Options
+- Assessment Availability
+- Active / Inactive Status
+
+### Question Creation Interface
+
+The administrator should be able to:
+
+1. Add a question.
+2. Select question format.
+3. Enter the question.
+4. Add answer options.
+5. Configure the correct answer.
+6. Assign marks.
+7. Add optional explanations.
+8. Save the question.
+9. Add multiple questions.
+10. Reorder questions.
+
+Provide a reusable Question Bank.
+
+---
+
+# PART 6: WHATSAPP ASSESSMENT DELIVERY
+
+## STAGE 8: ASSESSMENT EXECUTION
+
+Once the employee sends FINISH:
+
+The chatbot responds:
+
+"Congratulations! You have completed the learning video. Now let's test your understanding."
+
+Fetch the corresponding assessment from the Admin Panel.
+
+### Assessment Delivery Options
+
+Deliver questions using suitable WhatsApp formats:
+
+- Interactive reply buttons.
+- List messages.
+- Numbered MCQ options.
+- Text-based answers.
+- WhatsApp Flows where supported.
+
+For longer or more complex assessments, provide an authenticated web-based assessment interface as an alternative.
+
+### Assessment Execution Logic
+
+- Deliver questions in the configured sequence.
+- Record each employee response.
+- Associate responses with Question ID.
+- Associate the assessment with Employee ID.
+- Prevent duplicate submissions.
+- Maintain assessment progress.
+- Allow configured retries.
+- Submit the assessment once all mandatory questions are answered.
+
+### Assessment Timeout
+
+If a time limit is configured:
+
+- Record assessment start time.
+- Monitor elapsed time.
+- Automatically close the assessment when the time limit expires.
+- Evaluate submitted answers according to configured rules.
+
+---
+
+# PART 7: AUTOMATIC EVALUATION AND SCORING ENGINE
+
+## STAGE 9: AUTOMATED ASSESSMENT EVALUATION
+
+After assessment submission, the backend automatically evaluates objective questions using the answer keys configured by the administrator.
+
+### Example
+
+| Question | Marks | Employee Answer | Result |
+|---|---:|---|---|
+| Q1 | 5 | Correct | 5 |
+| Q2 | 5 | Correct | 5 |
+| Q3 | 10 | Incorrect | 0 |
+| Q4 | 10 | Correct | 10 |
+
+Total Marks: 30
+
+Marks Obtained: 20
+
+Percentage: 66.67%
+
+### Automatic Evaluation Requirements
+
+- Compare submitted answers against the configured answer key.
+- Calculate marks obtained.
+- Apply negative marking if enabled.
+- Calculate percentage.
+- Determine Pass / Fail.
+- Store assessment results.
+- Update the Admin Panel.
+- Generate the scorecard.
+
+For manual-evaluation questions:
+
+- Mark the assessment as Pending Evaluation.
+- Allow authorized admins to evaluate answers.
+- Recalculate the final result after manual marks are submitted.
+
+Correct answers and answer keys must never be exposed to employees through the chatbot or client-side assessment interface.
+
+---
+
+# PART 8: AUTOMATED SCORECARD GENERATION
+
+## STAGE 10: SCORECARD GENERATION
+
+After successful assessment evaluation, automatically generate an individual scorecard.
+
+### Scorecard Fields
+
+- Employee Name
+- Employee ID
+- City
+- Zone
+- Manager Name
+- Module Number
+- Video Title
+- Assessment Title
+- Total Questions
+- Correct Answers
+- Incorrect Answers
+- Unanswered Questions
+- Total Marks
+- Marks Obtained
+- Percentage
+- Pass / Fail
+- Completion Date
+- Time Taken
+
+### WhatsApp Scorecard Message
+
+Example:
+
+"Your Assessment 1 is complete!
+
+Total Marks: 30
+Marks Obtained: 25
+Percentage: 83.33%
+Result: PASS
+
+Congratulations! You are ready for the next learning module."
+
+Provide a scorecard preview or secure download link.
+
+Store all scorecards in the Admin Panel.
+
+---
+
+# PART 9: AUTOMATIC CERTIFICATE GENERATION
+
+## STAGE 11: CERTIFICATE MANAGEMENT
+
+Create a dedicated **Certificate Management** module in the Admin Panel.
+
+Certificates should be generated automatically after the employee meets the configured eligibility requirements.
+
+### Certificate Eligibility Configuration
+
+Allow the admin to configure:
+
+- Assessment Passed.
+- Minimum Passing Percentage.
+- All Mandatory Modules Completed.
+- All Required Assessments Evaluated.
+- Other program-specific requirements.
+
+For example, if a course requires completion of three modules, the final certificate must only be generated after all three modules and their mandatory assessments are completed successfully.
+
+### Certificate Template
+
+Provide customizable certificate templates containing:
+
+- Edventure Logo
+- Certificate Title
+- Employee Name
+- Employee ID
+- Course / Program Name
+- Completion Details
+- Assessment Score (Optional)
+- Completion Date
+- Unique Certificate ID
+- Authorized Signatory Name
+- Designation
+- Digital Signature
+- QR Code for Verification
+
+### Certificate Download in Admin Panel
+
+Create a dedicated certificate listing page.
+
+Display:
+
+- Employee Name
+- Employee ID
+- Course Name
+- Assessment Score
+- Certificate ID
+- Issue Date
+- Certificate Status
+
+Provide the following actions:
+
+- View Certificate
+- Download Certificate (PDF)
+- Regenerate Certificate
+- Revoke Certificate (Authorized Admin)
+- Bulk Download Certificates
+
+### Certificate Verification
+
+Generate a unique certificate ID and QR code.
+
+Scanning the QR code should open a secure certificate verification page showing:
+
+- Certificate ID
+- Employee Name
+- Course Name
+- Issue Date
+- Status: Valid / Revoked
+
+Avoid exposing unnecessary personal information.
+
+### WhatsApp Certificate Delivery
+
+Optionally send a WhatsApp notification:
+
+"Congratulations! You have successfully completed your Edventure learning program. Your certificate is ready."
+
+Provide a secure PDF download link if certificate delivery is enabled.
+
+---
+
+# PART 10: MULTIPLE LEARNING MODULES
+
+## STAGE 12: AUTOMATIC NEXT MODULE ACTIVATION
+
+After completing the first module:
+
+1. Video 1 is completed.
+2. Assessment 1 is submitted.
+3. Assessment 1 is evaluated.
+4. Scorecard 1 is generated.
+5. Module completion conditions are checked.
+6. Video 2 is unlocked.
+
+Repeat for subsequent modules.
+
+### Important Rules
+
+- Every video must have its own associated assessment.
+- Every assessment must have its own answer key.
+- Every assessment must generate its own scorecard.
+- Module progression must follow the admin-configured sequence.
+- The admin must be able to configure whether passing is mandatory for progression.
+- If an employee fails, the system should follow the configured retry or retake policy.
+- The admin must be able to manually override module progression where authorized.
+
+---
+
+# PART 11: ADMIN PANEL – COMPLETE FUNCTIONALITY
+
+## STAGE 13: ADMIN DASHBOARD
+
+Create a centralized dashboard with the following navigation:
+
+1. Dashboard Overview
+2. Employee Management
+3. Video & Learning Management
+4. Learning Journey Builder
+5. Assessment Builder
+6. Question Bank
+7. Scorecards & Results
+8. Certificate Management
+9. Reminder Management
+10. City & Zone Management
+11. Reports & Analytics
+12. Settings
+
+### Dashboard Analytics
+
+Display:
+
+- Total Registered Employees
+- Active Learners
+- Total Learning Modules
+- Total Videos
+- Videos Delivered
+- Videos Completed
+- Pending Videos
+- Assessments Completed
+- Pending Assessments
+- Average Assessment Score
+- Pass Percentage
+- Fail Percentage
+- Certificates Generated
+- Certificates Pending
+
+### Employee Management
+
+Display employee information:
+
+- Employee ID
+- Name
+- City
+- Zone
+- Manager Name
+- Registration Date
+- Consent Status
+- Learning Progress
+- Current Module
+- Overall Completion Percentage
+
+Provide employee-wise details and progress tracking.
+
+### Employee Progress Tracking
+
+For every employee, display a sequential learning progress table.
+
+| Learning Activity | Status |
+|---|---|
+| Registration | Completed |
+| Consent | Accepted |
+| Video 1 | Completed |
+| Assessment 1 | Evaluated |
+| Scorecard 1 | Generated |
+| Video 2 | Pending |
+| Assessment 2 | Locked |
+| Scorecard 2 | Not Available |
+| Certificate | Not Eligible |
+
+Use clear status indicators.
+
+### Admin Filters
+
+Allow filtering by:
+
+- City
+- Zone
+- Manager
+- Employee
+- Module
+- Video
+- Assessment
+- Pass / Fail
+- Completion Status
+- Certificate Status
+
+---
+
+# PART 12: DATABASE AND BACKEND ARCHITECTURE
+
+## STAGE 14: BACKEND INTEGRATION
+
+Design a centralized backend that connects the WhatsApp Cloud API, Admin Panel, database, and automation engine.
+
+### Core Database Entities
+
+**1. Employees**
+- Employee ID
+- Name
+- City
+- Zone
+- Manager Name
+- Registration Timestamp
+- Consent Status
+
+**2. Learning Modules**
+- Module ID
+- Module Title
+- Sequence Number
+- Status
+
+**3. Videos**
+- Video ID
+- Module ID
+- Video Title
+- Video URL
+- Video Delivery Status
+- Completion Status
+
+**4. Assessments**
+- Assessment ID
+- Module ID
+- Video ID
+- Assessment Title
+- Total Marks
+- Passing Percentage
+
+**5. Questions**
+- Question ID
+- Assessment ID
+- Question Type
+- Question Text
+- Options
+- Correct Answer
+- Marks
+
+**6. Assessment Submissions**
+- Submission ID
+- Employee ID
+- Assessment ID
+- Submitted Answers
+- Marks Obtained
+- Percentage
+- Result Status
+
+**7. Scorecards**
+- Scorecard ID
+- Employee ID
+- Assessment ID
+- Result
+- Generated Timestamp
+
+**8. Certificates**
+- Certificate ID
+- Employee ID
+- Program ID
+- PDF Storage Reference
+- Issue Date
+- Certificate Status
+
+**9. Reminder Configuration**
+- Reminder ID
+- Module ID (Optional)
+- Trigger Interval
+- Time Unit
+- Message Template
+- Active Status
+
+**10. Reminder Logs**
+- Employee ID
+- Video ID
+- Reminder ID
+- Scheduled Timestamp
+- Sent Timestamp
+- Delivery Status
+
+### Backend Requirements
+
+- Use unique identifiers for all records.
+- Maintain employee-wise learning history.
+- Store all important timestamps.
+- Synchronize status updates with the Admin Panel.
+- Protect answer keys.
+- Prevent duplicate webhook processing.
+- Prevent duplicate assessment submissions.
+- Ensure assignments, scorecards, and certificates are not generated multiple times unintentionally.
+- Implement authentication and role-based admin permissions.
+- Maintain audit logs for important admin changes.
+
+---
+
+# PART 13: COMPLETE END-TO-END WORKFLOW DIAGRAM
+
+Create a comprehensive workflow using four swimlanes:
+
+1. Employee / User
+2. WhatsApp Chatbot
+3. Backend & Automation Engine
+4. Admin Panel & Database
+
+### Complete Flow
+
+<escape>EMPLOYEE SENDS "HI"
+        ↓
+CHATBOT WELCOMES EMPLOYEE
+        ↓
+COLLECT EMPLOYEE DETAILS
+        ↓
+VALIDATE REGISTRATION
+        ↓
+CITY AND ZONE MAPPING
+        ↓
+ASK FOR CONSENT
+        ↓
+CONSENT ACCEPTED?
+    ↙ YES       NO ↘
+SAVE DETAILS   END JOURNEY
+        ↓
+ACTIVATE EMPLOYEE
+        ↓
+FETCH FIRST LEARNING MODULE
+        ↓
+VIDEO 1 DELIVERY
+        ↓
+RECORD DELIVERY TIMESTAMP
+        ↓
+START CUSTOM REMINDER SCHEDULE
+        ↓
+WAIT FOR FINISH
+        ↓
+FINISH RECEIVED?
+    ↙ YES       NO ↘
+CANCEL         CHECK REMINDER
+REMINDERS      CONFIGURATION
+    ↓               ↓
+UNLOCK          SEND REMINDER
+ASSESSMENT 1    IF STILL PENDING
+    ↓               ↓
+ASSESSMENT 1   CONTINUE CHECKING
+DELIVERY
+    ↓
+COLLECT ANSWERS
+    ↓
+SUBMIT ASSESSMENT
+    ↓
+AUTOMATIC EVALUATION
+    ↓
+GENERATE SCORECARD 1
+    ↓
+CHECK MODULE COMPLETION
+    ↓
+UNLOCK VIDEO 2
+    ↓
+REPEAT VIDEO → FINISH → ASSESSMENT → SCORECARD
+    ↓
+REPEAT FOR ALL CONFIGURED MODULES
+    ↓
+CHECK FINAL CERTIFICATE ELIGIBILITY
+    ↓
+GENERATE COURSE CERTIFICATE
+    ↓
+SAVE CERTIFICATE
+    ↓
+DISPLAY IN ADMIN PANEL
+    ↓
+ADMIN VIEWS / DOWNLOADS PDF
+    ↓
+OPTIONALLY SEND CERTIFICATE THROUGH WHATSAPP
+    ↓
+LEARNING JOURNEY COMPLETED</escape>
+
+The reminder engine must work independently alongside each video delivery and completion process.
+
+---
+
+# PART 14: TECHNICAL AND OPERATIONAL CONSIDERATIONS
+
+The implementation must consider:
+
+1. WhatsApp Cloud API integration for messaging.
+2. Webhook integration for incoming messages and delivery statuses.
+3. Background job scheduling for reminders.
+4. Database-driven video and assessment configurations.
+5. Secure video URL management.
+6. Dynamic MCQ and assessment delivery.
+7. Backend-based answer evaluation.
+8. Automatic scorecard generation.
+9. PDF certificate generation.
+10. Admin Panel certificate downloads.
+11. Role-based access control.
+12. Employee-wise progress analytics.
+13. Retry and error handling.
+14. Duplicate webhook protection.
+15. WhatsApp 24-hour messaging window and approved template requirements.
+16. Secure handling of employee information and consent.
+17. Timezone-aware reminder scheduling.
+
+Do not assume that keeping a video open on WhatsApp or delivering a video attachment provides verified watch-completion information.
+
+Use the FINISH response as the default self-reported completion mechanism.
+
+---
+
+# PART 15: FINAL EXPECTED DELIVERABLES
+
+Create the following deliverables:
+
+### A. Complete Admin Panel UI
+- Dashboard
+- Employee Management
+- Video Management
+- Learning Sequence Builder
+- Assessment Builder
+- Question Bank
+- Scorecard Management
+- Certificate Management
+- Reminder Management
+- Reports & Analytics
+
+### B. Complete WhatsApp Chatbot Flow
+- Registration
+- Validation
+- City and Zone Mapping
+- Consent
+- Video Delivery
+- Completion Tracking
+- Reminders
+- Assessments
+- Automatic Evaluation
+- Scorecards
+- Next Module Activation
+- Certificate Notification
+
+### C. Technical System Architecture
+- WhatsApp Cloud API
+- Admin Panel
+- Backend Services
+- Database
+- Video Hosting
+- Reminder Scheduler
+- Assessment Engine
+- Scorecard Generator
+- Certificate Generator
+
+### D. Database Structure
+Provide the required tables or collections, fields, relationships, and unique identifiers.
+
+### E. Developer Implementation Documentation
+Document all business rules, API integrations, webhook events, status transitions, and error-handling scenarios.
+
+## Final Design Direction
+
+Use a modern, professional SaaS dashboard design.
+
+The Admin Panel should be intuitive, responsive, and easy to operate without technical knowledge.
+
+The WhatsApp chatbot should provide a simple, conversational learning experience.
+
+The overall architecture must be modular, scalable, dynamic, and maintainable.
+
+**Core principle: The Admin Panel controls the complete learning journey. The WhatsApp chatbot executes that journey automatically.**

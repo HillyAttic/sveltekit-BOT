@@ -33,7 +33,22 @@ export interface User {
   gstNumber?: string
   employeeId?: string
   city?: string
+  zone?: string
   managerName?: string
+  consentStatus?: 'accepted' | 'declined'
+  consentAt?: string
+  consentVersion?: string
+}
+
+export interface UserProfile {
+  employeeId: string
+  name: string
+  city: string
+  zone?: string
+  managerName: string
+  consentStatus?: 'accepted' | 'declined'
+  consentAt?: string
+  consentVersion?: string
 }
 
 export interface Document {
@@ -232,20 +247,24 @@ export async function findAllUsersByPhone(phone: string): Promise<UserWithId[]> 
       gstNumber: data.gstNumber,
       employeeId: data.employeeId,
       city: data.city,
-      managerName: data.managerName
+      zone: data.zone,
+      managerName: data.managerName,
+      consentStatus: data.consentStatus,
+      consentAt: data.consentAt,
+      consentVersion: data.consentVersion
     }
   })
 }
 
 /**
- * Save onboarding details for a phone number. Creates the user record when the
- * number is not enrolled yet; otherwise merges into the existing document.
+ * Save registration details for a phone number. Creates the user record when
+ * the number is not enrolled yet; otherwise merges into the existing document.
  * Returns the Firestore document ID.
  */
 export async function saveUserProfile(
   phone: string,
   clientId: string | null,
-  profile: { employeeId: string; name: string; city: string; managerName: string }
+  profile: UserProfile
 ): Promise<string> {
   const db = getFirestore()
   const normalizedPhone = normalizePhone(phone)
@@ -397,6 +416,10 @@ import type { BotSession } from './bot-flow'
 export async function saveBotSession(phone: string, session: BotSession): Promise<void> {
   const db = getFirestore()
   await db.collection('sessions').doc(phone).set(session)
+}
+
+export async function clearBotSession(phone: string): Promise<void> {
+  await getFirestore().collection('sessions').doc(normalizePhone(phone)).delete()
 }
 
 export async function getBotSession(phone: string): Promise<BotSession | null> {

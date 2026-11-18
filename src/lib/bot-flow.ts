@@ -1,40 +1,64 @@
-import { getFilteredDocuments, getCategories, saveUserProfile, type Document } from './document-service'
-import { generateSignedUrl } from './storage-service'
-import { recordDocumentAccess } from './chat-logger'
-import { getPendingDelivery, markDeliveryComplete } from './reminder-service'
+import { saveUserProfile, type UserProfile } from './document-service'
+import {
+  DEFAULT_EMPLOYEE_ID_PATTERN,
+  evaluateQuestions,
+  getActiveModules,
+  getAssessmentForModule,
+  getCities,
+  getNextModule,
+  getQuestionsByIds,
+  getRegistrationConfig,
+  moduleKey,
+  questionOptions,
+  saveAssessmentResult,
+  type EmployeeDetails,
+  type LearningModule,
+} from './learning-service'
+import {
+  getPendingDelivery,
+  markDeliveryComplete,
+  recordVideoDelivery,
+  type VideoDelivery,
+} from './reminder-service'
+
+export interface EmployeeInfo extends EmployeeDetails {
+  id?: string
+}
+
+export interface BotUser extends EmployeeInfo {
+  consentStatus?: 'accepted' | 'declined'
+}
+
+export interface AssessmentState {
+  assessmentId: string
+  title: string
+  questionIds: string[]
+  index: number
+  answers: Record<string, string>
+  passingPercentage: number
+  moduleNumber?: string
+  videoTitle: string
+  startedAt: string
+}
 
 export interface BotSession {
   currentStep: string
-  stepHistory: string[]
-  category?: string
-  categoryId?: string
-  fiscalYear?: string
-  subCategory?: string
-  documentList?: Document[]
-  fullDocumentList?: Document[]
-  selectedClientId?: string
-  selectedClientName?: string
-  availableClients?: BotClient[]
-  onboarding?: Partial<Record<ProfileField, string>>
-  onboardingClientId?: string
+  registration?: {
+    employeeId?: string
+    name?: string
+    city?: string
+    zone?: string
+    managerName?: string
+  }
+  registrationClientId?: string
+  employee?: EmployeeInfo
+  assessment?: AssessmentState
   createdAt: string
   expiresAt: string
 }
 
-export interface BotClient {
-  id: string
-  name: string
-  employeeId?: string
-  city?: string
-  managerName?: string
-}
-
 export type InteractivePayload =
-  | {
-      type: 'button'
-      body: string
-      buttons: { id: string; title: string }[]
-    }
+  | { type: 'button'; body: string; buttons: { id: string; title: string }[] }
   | {
       type: 'list'
       body: string
@@ -47,53 +71,12 @@ export type InteractivePayload =
 
 export interface FlowResult {
   message: string
-  document?: { url: string; filename: string; caption: string }
-  documents?: { url: string; filename: string; caption: string }[]
   interactive?: InteractivePayload
-  followUp?: InteractivePayload
   session: BotSession | null
 }
 
 // ---------------------------------------------------------------------------
-// Flow message body text (descriptive only — no numbered lists)
-// ---------------------------------------------------------------------------
-const FLOW_MESSAGES = {
-  user_not_found:
-    'Hello \u{1F44B}\n\nWe could not find your account in our system.\n\nPlease contact your administrator to be enrolled.',
-  client_selection:
-    'Hello \u{1F44B}\n\nYou are registered with us under multiple companies.\n\nPlease select which company\'s documents you want to access:',
-  category_selection:
-    'Hello I\'m Nova \u{1F44B}\n\nWelcome to Edventure Learning.\n\nPlease select a learning category:',
-  audit_year: 'You selected: Audit Report \u{1F4CA}\n\nPlease select Financial Year:',
-  financial_year:
-    'You selected: Financial Statements \u{1F4CA}\n\nPlease select Financial Year:',
-  gst_year: 'You selected: GST Documents \u{1F4CA}\n\nPlease select Financial Year:',
-  gst_type: 'Please select document type:',
-  income_tax_year:
-    'You selected: Income Tax Documents \u{1F4C4}\n\nPlease select Financial Year:',
-  income_tax_type: 'Please select document type:',
-  no_documents:
-    'No documents found for the selected option.\n\nPlease try another category or year.',
-  invalid_input:
-    'Invalid input \u2757\n\nPlease reply with a valid number from the options above.',
-  restart: 'Returning to main menu...',
-  back: 'Going back...',
-  no_back: 'You are already at the main menu. Please select an option above.',
-} as const
-
-// ---------------------------------------------------------------------------
-// Reusable navigation section for list menus (Back + Main Menu)
-// ---------------------------------------------------------------------------
-const NAV_SECTION = {
-  title: 'Navigation',
-  rows: [
-    { id: 'back', title: 'Back' },
-    { id: 'main_menu', title: 'Main Menu' },
-  ],
-}
-
-// ---------------------------------------------------------------------------
-// Onboarding: details collected the first time an employee says Hi
+// Registration
 // ---------------------------------------------------------------------------
 type ProfileField = 'employeeId' | 'name' | 'city' | 'managerName'
 
@@ -101,920 +84,527 @@ const PROFILE_FIELDS: ProfileField[] = ['employeeId', 'name', 'city', 'managerNa
 
 const PROFILE_PROMPTS: Record<ProfileField, string> = {
   employeeId:
-    'Welcome to Edventure Learning \u{1F44B}\n\nLet\'s set up your profile.\n\n1/4 — Please enter your Employee ID:',
-  name: '2/4 — Please enter your full name:',
-  city: '3/4 — Please enter your city:',
-  managerName: '4/4 — Please enter your manager\'s name:',
+    "Welcome to Edventure! Let's get started with your learning journey.\n\nPlease provide the following details.\n\n1/4 — Employee ID:",
+  name: '2/4 — Employee Name:',
+  city: '3/4 — City:',
+  managerName: '4/4 — Manager Name:',
 }
 
-function needsOnboarding(client?: BotClient): boolean {
-  return !(
-    client?.employeeId?.trim() &&
-    client?.city?.trim() &&
-    client?.managerName?.trim()
+const CONSENT_TEXT =
+  'Do you consent to Edventure recording and processing your registration information for managing your learning journey and assessments?'
+
+const CONSENT_BUTTONS = [
+  { id: 'consent_yes', title: 'YES - I Consent' },
+  { id: 'consent_no', title: 'NO - I Do Not Consent' },
+]
+
+function isRegistered(user?: BotUser | null): boolean {
+  return (
+    !!user &&
+    !!user.employeeId &&
+    !!user.name &&
+    !!user.city &&
+    !!user.managerName &&
+    user.consentStatus === 'accepted'
   )
 }
 
-function askProfile(session: BotSession, field: ProfileField, note?: string): FlowResult {
-  return {
-    message: note ? `${note}\n\n${PROFILE_PROMPTS[field]}` : PROFILE_PROMPTS[field],
-    session: { ...session, currentStep: `onboarding_${field}` },
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Interactive payload builders for each step (year/sub-cat are built dynamically)
-// ---------------------------------------------------------------------------
-const STEP_INTERACTIVE: Record<string, InteractivePayload> = {
-  audit_year: {
-    type: 'list',
-    body: FLOW_MESSAGES.audit_year,
-    buttonText: 'Select Year',
-    sections: [],
-  },
-  financial_year: {
-    type: 'list',
-    body: FLOW_MESSAGES.financial_year,
-    buttonText: 'Select Year',
-    sections: [],
-  },
-  gst_year: {
-    type: 'list',
-    body: FLOW_MESSAGES.gst_year,
-    buttonText: 'Select Year',
-    sections: [],
-  },
-  gst_type: {
-    type: 'list',
-    body: FLOW_MESSAGES.gst_type,
-    buttonText: 'Select Type',
-    sections: [],
-  },
-  income_tax_year: {
-    type: 'list',
-    body: FLOW_MESSAGES.income_tax_year,
-    buttonText: 'Select Year',
-    sections: [],
-  },
-  income_tax_type: {
-    type: 'list',
-    body: FLOW_MESSAGES.income_tax_type,
-    buttonText: 'Select Type',
-    sections: [],
-  },
-}
-
-/**
- * Build client selection menu for multiple clients
- */
-function buildClientSelection(clients: Array<{ id: string; name: string }>): InteractivePayload {
-  const rows = clients.map(client => ({
-    id: client.id,
-    title: truncate(client.name, 24),
-  }))
-
-  // Use buttons for 2-3 clients, list for 4+
-  if (clients.length <= 3) {
-    return {
-      type: 'button',
-      body: FLOW_MESSAGES.client_selection,
-      buttons: rows.slice(0, 3).map(r => ({ id: r.id, title: r.title })),
-    }
-  }
-
-  return {
-    type: 'list',
-    body: FLOW_MESSAGES.client_selection,
-    buttonText: 'Select Client',
-    sections: [
-      {
-        title: 'Clients',
-        rows,
-      },
-    ],
-  }
-}
-
-/**
- * Build dynamic category selection menu from Firestore categories
- */
-async function buildCategorySelection(): Promise<InteractivePayload> {
-  const categories = await getCategories()
-  // Reverse to match admin dashboard order (DocumentList uses .reverse())
-  const rows = Object.keys(categories).reverse().map((name, index) => ({
-    id: String(index + 1),
-    title: truncate(name, 24),
-  }))
-
-  return {
-    type: 'list',
-    body: FLOW_MESSAGES.category_selection,
-    buttonText: 'Select Category',
-    sections: [
-      {
-        title: 'Categories',
-        rows,
-      },
-    ],
-  }
-}
-
-/**
- * Build dynamic year selection menu for a category
- */
-async function buildYearSelection(
+function createSession(
   step: string,
-  category: string,
-  fiscalYears: string[]
-): Promise<InteractivePayload> {
-  // WhatsApp allows max 10 rows total across all sections.
-  // Reserve 2 rows for navigation (Back + Main Menu), so cap at 8 FY rows.
-  const cappedYears = fiscalYears.slice(0, 8)
-  const rows = cappedYears.map((year, index) => ({
-    id: String(index + 1),
-    title: year,
-  }))
-
-  return {
-    type: 'list',
-    body: FLOW_MESSAGES[step as keyof typeof FLOW_MESSAGES] || `You selected: ${category}\n\nPlease select Financial Year:`,
-    buttonText: 'Select Year',
-    sections: [
-      {
-        title: 'Financial Years',
-        rows,
-      },
-      NAV_SECTION,
-    ],
-  }
-}
-
-/**
- * Build dynamic sub-category selection menu for a category
- */
-async function buildSubCategorySelection(
-  step: string,
-  subCategories: string[]
-): Promise<InteractivePayload> {
-  const rows = subCategories.map((sub, index) => ({
-    id: String(index + 1),
-    title: sub,
-  }))
-
-  // Add Download All when there are multiple subcategories
-  if (subCategories.length > 1) {
-    rows.unshift({ id: 'download_all', title: 'Download All' })
-  }
-
-  return {
-    type: 'list',
-    body: FLOW_MESSAGES[step as keyof typeof FLOW_MESSAGES] || 'Please select document type:',
-    buttonText: 'Select Type',
-    sections: [
-      {
-        title: 'Document Types',
-        rows,
-      },
-      NAV_SECTION,
-    ],
-  }
-}
-
-// Category mapping is now built dynamically from Firestore categories
-// Format: { '1': { step, category, hasSubCategories } }
-
-/**
- * Build category map from Firestore categories
- * Returns a mapping from numeric IDs to category configs
- */
-async function buildCategoryMap(): Promise<
-  Record<string, { step: string; category: string; hasFiscalYears: boolean; hasSubCategories: boolean }>
-> {
-  const categories = await getCategories()
-  // Reverse to match admin dashboard order (DocumentList uses .reverse())
-  const categoryNames = Object.keys(categories).reverse()
-  console.log('[buildCategoryMap] Categories from cache/DB:', categoryNames)
-
-  const map: Record<string, { step: string; category: string; hasFiscalYears: boolean; hasSubCategories: boolean }> = {}
-
-  categoryNames.forEach((name, index) => {
-    const id = String(index + 1)
-    const config = categories[name]
-    const hasFiscalYears = config.fiscalYears.length > 0
-    const hasSubCategories = config.subCategories.length > 0
-
-    console.log(`[buildCategoryMap] Category ${id}: ${name} (FY: ${hasFiscalYears}, Sub: ${hasSubCategories})`)
-
-    // Determine the next step based on configuration
-    let step: string
-    if (!hasFiscalYears && !hasSubCategories) {
-      // No year or sub-category selection needed - fetch directly
-      step = 'fetch_documents_direct'
-    } else if (hasFiscalYears && !hasSubCategories) {
-      // Has fiscal years but no sub-categories
-      step = `${id}_year_selection` // Unique step per category
-    } else if (hasFiscalYears && hasSubCategories) {
-      // Has both fiscal years and sub-categories
-      step = `${id}_year_selection`
-    } else {
-      // No fiscal years but has sub-categories (unlikely but handle it)
-      step = `${id}_sub_selection`
-    }
-
-    map[id] = {
-      step,
-      category: name,
-      hasFiscalYears,
-      hasSubCategories,
-    }
-  })
-
-  console.log('[buildCategoryMap] Built map:', Object.keys(map))
-  return map
-}
-
-/**
- * Build year map for a specific category
- */
-function buildYearMapForCategory(
-  categoryId: string,
-  fiscalYears: string[],
-  hasSubCategories: boolean
-): Record<string, { year: string; nextStep: string }> {
-  const map: Record<string, { year: string; nextStep: string }> = {}
-
-  fiscalYears.forEach((year, index) => {
-    const id = String(index + 1)
-    map[id] = {
-      year,
-      nextStep: hasSubCategories ? `${categoryId}_sub_selection` : 'fetch_documents',
-    }
-  })
-
-  return map
-}
-
-/**
- * Build sub-category map for a specific category
- */
-function buildSubCategoryMapForCategory(subCategories: string[]): Record<string, string> {
-  const map: Record<string, string> = {}
-
-  subCategories.forEach((sub, index) => {
-    const id = String(index + 1)
-    map[id] = sub
-  })
-
-  return map
-}
-
-function createSession(step: string, overrides?: Partial<BotSession>): BotSession {
+  overrides?: Partial<BotSession>,
+  ttlMs = 30 * 60 * 1000
+): BotSession {
   const now = Date.now()
   return {
     currentStep: step,
-    stepHistory: [],
     createdAt: new Date(now).toISOString(),
-    expiresAt: new Date(now + 30 * 60 * 1000).toISOString(),
+    expiresAt: new Date(now + ttlMs).toISOString(),
     ...overrides,
   }
 }
 
-function pushStep(session: BotSession, nextStep: string): BotSession {
+function askRegistration(session: BotSession, field: ProfileField, note?: string): FlowResult {
   return {
-    ...session,
-    currentStep: nextStep,
-    stepHistory: [...session.stepHistory, session.currentStep],
+    message: note ? `${note}\n\n${PROFILE_PROMPTS[field]}` : PROFILE_PROMPTS[field],
+    session: { ...session, currentStep: `registration_${field}` },
   }
 }
 
-function goBack(session: BotSession): { step: string; session: BotSession } | null {
-  if (session.stepHistory.length === 0) return null
-  const history = [...session.stepHistory]
-  const previousStep = history.pop()!
+function consentPrompt(session: BotSession): FlowResult {
   return {
-    step: previousStep,
-    session: { ...session, currentStep: previousStep, stepHistory: history },
+    message: CONSENT_TEXT,
+    interactive: { type: 'button', body: CONSENT_TEXT, buttons: CONSENT_BUTTONS },
+    session: { ...session, currentStep: 'consent' },
   }
 }
 
-/**
- * Build a FlowResult that includes the interactive payload for a given step.
- */
-function buildStepResult(step: string, session: BotSession, prefixMessage?: string): FlowResult {
-  const interactive = STEP_INTERACTIVE[step]
-  const body = interactive ? ('body' in interactive ? interactive.body : '') : ''
-  const message = prefixMessage ? prefixMessage + '\n\n' + body : body
-
-  return {
-    message,
-    interactive: interactive ?? undefined,
-    session,
+function validEmployeeId(value: string, pattern: string): boolean {
+  try {
+    return new RegExp(pattern).test(value)
+  } catch {
+    return new RegExp(DEFAULT_EMPLOYEE_ID_PATTERN).test(value)
   }
 }
 
-/**
- * Truncate a string to a max length, appending "…" if truncated.
- */
 function truncate(str: string, max: number): string {
   return str.length <= max ? str : str.slice(0, max - 1) + '…'
 }
 
-/**
- * Build a follow-up interactive payload shown after document(s) are sent.
- */
-function buildFollowUp(): InteractivePayload {
+// ---------------------------------------------------------------------------
+// Learning journey
+// ---------------------------------------------------------------------------
+// ponytail: the video is sent as a clickable link. Native WhatsApp video needs
+// a publicly reachable MP4 — switch to a video/document message when hosting
+// guarantees that.
+function videoPrompt(module: LearningModule): string {
+  const heading = module.moduleNumber
+    ? `Module ${module.moduleNumber}: ${module.title}`
+    : module.title
+  return [
+    "Welcome to Edventure! Let's continue your learning journey. Here is your learning video for today.",
+    '',
+    heading,
+    ...(module.description ? [module.description] : []),
+    ...(module.videoUrl ? ['', `Watch here: ${module.videoUrl}`] : []),
+    '',
+    'Please watch the complete video and type FINISH once you have completed watching it.',
+  ].join('\n')
+}
+
+function pendingPrompt(pending: VideoDelivery): string {
+  return [
+    `Your learning video "${pending.videoTitle}" is still pending.`,
+    ...(pending.videoUrl ? ['', `Watch here: ${pending.videoUrl}`] : []),
+    '',
+    'Please watch the complete video and type FINISH once you have completed watching it.',
+  ].join('\n')
+}
+
+async function deliverNextVideo(
+  phone: string,
+  employee: EmployeeInfo
+): Promise<FlowResult> {
+  const module = await getNextModule(phone)
+  if (!module) {
+    // ponytail: certificate PDFs are not generated yet; only announce completion.
+    return {
+      message:
+        'You have completed all available learning modules.\n\nYour certificate will be shared with you once it has been generated.',
+      session: createSession('done', { employee }),
+    }
+  }
+
+  await recordVideoDelivery({
+    phone,
+    clientId: employee.id,
+    clientName: employee.name,
+    employeeName: employee.name,
+    videoTitle: module.title,
+    videoUrl: module.videoUrl,
+    moduleNumber: module.moduleNumber,
+    deliveredAt: new Date().toISOString(),
+  })
+
   return {
-    type: 'button',
-    body: 'Your document has been sent successfully!\n\nWould you like to download another document?',
-    buttons: [{ id: 'select_category', title: 'Select Category' }],
+    message: videoPrompt(module),
+    session: createSession('awaiting_finish', { employee }),
   }
 }
 
-/**
- * Process an incoming message and return the response + updated session.
- * User verification is handled by the caller — this function is only called for verified users.
- *
- * @param phone - The user's phone number
- * @param text - The message text
- * @param session - The current bot session
- * @param interactiveReplyId - The button/list reply ID from an interactive message tap
- * @param availableClients - Array of clients associated with this phone number
- */
+async function startAssessment(
+  phone: string,
+  pending: VideoDelivery & { id: string },
+  employee: EmployeeInfo | null
+): Promise<FlowResult> {
+  const modules = await getActiveModules()
+  const moduleIndex = modules.findIndex(
+    (m) => moduleKey(m) === String(pending.moduleNumber ?? pending.videoTitle)
+  )
+  const module = moduleIndex >= 0 ? modules[moduleIndex] : null
+  const assessment = await getAssessmentForModule(module, Math.max(moduleIndex, 0))
+  const questionIds = assessment?.questionIds ?? []
+
+  if (!assessment || questionIds.length === 0) {
+    const done = `Great job! Your video "${pending.videoTitle}" has been marked as completed.`
+    if (!employee) {
+      return { message: `${done}\n\nPlease type Hi to continue.`, session: null }
+    }
+    const next = await deliverNextVideo(phone, employee)
+    return { ...next, message: `${done}\n\n${next.message}` }
+  }
+
+  const questions = await getQuestionsByIds(questionIds)
+  if (questions.length === 0) {
+    const done = `Great job! Your video "${pending.videoTitle}" has been marked as completed.`
+    if (!employee) {
+      return { message: `${done}\n\nPlease type Hi to continue.`, session: null }
+    }
+    const next = await deliverNextVideo(phone, employee)
+    return { ...next, message: `${done}\n\n${next.message}` }
+  }
+
+  // ponytail: the session TTL is the de-facto assessment time limit; honour
+  // assessment.timeLimit from the builder once it is stored there.
+  const session = createSession(
+    'assessment_question',
+    {
+      employee: employee ?? undefined,
+      assessment: {
+        assessmentId: assessment.id,
+        title: assessment.title,
+        questionIds: questions.map((q) => q.id),
+        index: 0,
+        answers: {},
+        passingPercentage: assessment.passingPercentage ?? 40,
+        moduleNumber: pending.moduleNumber,
+        videoTitle: pending.videoTitle,
+        startedAt: new Date().toISOString(),
+      },
+    },
+    2 * 60 * 60 * 1000
+  )
+
+  return questionResult(
+    phone,
+    session,
+    "Congratulations! You have completed the learning video. Now let's test your understanding."
+  )
+}
+
+async function questionResult(
+  phone: string,
+  session: BotSession,
+  prefix?: string
+): Promise<FlowResult> {
+  const state = session.assessment!
+  const questions = await getQuestionsByIds(state.questionIds)
+  const question = questions[state.index]
+
+  // Question list changed underneath us — submit what we have.
+  if (!question) return finishAssessment(phone, session)
+
+  const body = [
+    ...(prefix ? [`${prefix}`, ''] : []),
+    `Question ${state.index + 1} of ${state.questionIds.length}`,
+    '',
+    question.text,
+  ].join('\n')
+
+  const options = questionOptions(question)
+  if (options.length === 0) {
+    return { message: `${body}\n\nType your answer.`, session }
+  }
+
+  return {
+    message: body,
+    interactive: {
+      type: 'list',
+      body,
+      buttonText: 'Answer',
+      sections: [
+        {
+          title: 'Options',
+          rows: options.map((option, i) => ({ id: `opt_${i}`, title: truncate(option, 24) })),
+        },
+      ],
+    },
+    session,
+  }
+}
+
+async function answerQuestion(
+  phone: string,
+  session: BotSession,
+  interactiveReplyId: string | undefined,
+  raw: string
+): Promise<FlowResult> {
+  const state = session.assessment!
+  const questions = await getQuestionsByIds(state.questionIds)
+  const question = questions[state.index]
+  if (!question) return finishAssessment(phone, session)
+
+  const options = questionOptions(question)
+  let answer: string
+
+  if (options.length > 0) {
+    if (!interactiveReplyId?.startsWith('opt_')) {
+      return questionResult(phone, session, 'Please choose one of the options.')
+    }
+    const index = Number(interactiveReplyId.slice(4))
+    if (!Number.isInteger(index) || index < 0 || index >= options.length) {
+      return questionResult(phone, session, 'Please choose one of the options.')
+    }
+    answer = interactiveReplyId
+  } else {
+    if (!raw) return questionResult(phone, session, 'Please type your answer.')
+    if (raw.length > 2000) {
+      return questionResult(
+        phone,
+        session,
+        'Your answer is too long. Please keep it under 2000 characters.'
+      )
+    }
+    answer = raw
+  }
+
+  const next = {
+    ...state,
+    index: state.index + 1,
+    answers: { ...state.answers, [question.id]: answer },
+  }
+  const updated = { ...session, assessment: next }
+
+  return next.index < next.questionIds.length
+    ? questionResult(phone, updated)
+    : finishAssessment(phone, updated)
+}
+
+async function finishAssessment(phone: string, session: BotSession): Promise<FlowResult> {
+  const state = session.assessment!
+  const employee = session.employee
+  if (!employee) {
+    return { message: 'Your session has expired. Please type Hi to continue.', session: null }
+  }
+
+  const questions = await getQuestionsByIds(state.questionIds)
+  const evaluation = evaluateQuestions(questions, state.answers, state.passingPercentage)
+  const timeTakenSeconds = Math.max(
+    0,
+    Math.round((Date.now() - new Date(state.startedAt).getTime()) / 1000)
+  )
+
+  try {
+    await saveAssessmentResult({
+      employee,
+      assessmentId: state.assessmentId,
+      assessmentTitle: state.title,
+      moduleNumber: state.moduleNumber,
+      videoTitle: state.videoTitle,
+      answers: state.answers,
+      evaluation,
+      timeTakenSeconds,
+    })
+  } catch (error) {
+    console.error('[assessment] Failed to save result:', error)
+    return {
+      message: 'Your assessment was submitted, but the result could not be saved. Please contact your administrator.',
+      session: createSession('done', { employee }),
+    }
+  }
+
+  const lines = [
+    `Your ${state.title} is complete!`,
+    '',
+    `Total Marks: ${evaluation.totalMarks}`,
+    `Marks Obtained: ${evaluation.marksObtained}`,
+    `Percentage: ${evaluation.percentage}%`,
+    `Result: ${evaluation.result === 'PENDING' ? 'PENDING EVALUATION' : evaluation.result}`,
+  ]
+
+  if (evaluation.result === 'PENDING') {
+    lines.push('', 'Your answers have been submitted and will be reviewed by your manager.')
+    return { message: lines.join('\n'), session: createSession('done', { employee }) }
+  }
+
+  if (evaluation.result === 'FAIL') {
+    lines.push('', 'You did not meet the passing percentage. Please contact your manager for a retake.')
+    return { message: lines.join('\n'), session: createSession('done', { employee }) }
+  }
+
+  lines.push('', 'Congratulations! You are ready for the next learning module.')
+  const next = await deliverNextVideo(phone, employee)
+  return { message: `${lines.join('\n')}\n\n${next.message}`, session: next.session }
+}
+
+// ---------------------------------------------------------------------------
+// Message entry point
+// ---------------------------------------------------------------------------
 export async function processMessage(
   phone: string,
   text: string,
   session: BotSession | null,
   interactiveReplyId?: string,
-  availableClients?: BotClient[]
+  user?: BotUser | null
 ): Promise<FlowResult> {
-  // If an interactive reply ID is present, use it as the effective input.
-  // "back" maps to "#" so the existing back-handling logic works.
-  let input: string
-  if (interactiveReplyId) {
-    input = interactiveReplyId === 'back' ? '#' : interactiveReplyId.trim()
-  } else {
-    input = text.toLowerCase().trim()
-  }
+  const raw = text.trim()
+  const input = interactiveReplyId ? interactiveReplyId.trim() : raw.toLowerCase()
+  const step = session?.currentStep
 
-  // FINISH handling: mark any pending video delivery complete + cancel reminders
-  if (input === 'finish') {
+  // FINISH is a self-reported video completion. Never treat it as FINISH while
+  // a text question is waiting for an answer.
+  if (input === 'finish' && step !== 'assessment_question') {
     const pending = await getPendingDelivery(phone)
-    if (pending) {
-      await markDeliveryComplete(pending.id!)
+    if (!pending) {
       return {
-        message: 'Great job! Your learning video has been marked as completed. Your assessment is now unlocked.',
+        message: 'You have no pending learning video. Type Hi to continue your journey.',
         session,
       }
     }
+    await markDeliveryComplete(pending.id!)
+    return startAssessment(phone, pending, user ?? session?.employee ?? null)
   }
 
-  // Ensure stepHistory exists for legacy sessions
-  if (session && !session.stepHistory) {
-    session = { ...session, stepHistory: [] }
-  }
-
-  // "hi" / "hello" → client selection (if needed), onboarding, then the menu
+  // Hi / Hello → resume, continue, or start registration
   if (input === 'hi' || input === 'hello') {
-    // If multiple clients available, show client selection first
-    if (availableClients && availableClients.length > 1) {
-      const clientSelection = buildClientSelection(availableClients)
-      const newSession = createSession('client_selection')
-      newSession.availableClients = availableClients
+    if (step === 'assessment_question' && session?.assessment) {
+      return questionResult(phone, session)
+    }
+    if (isRegistered(user)) {
+      const employee: EmployeeInfo = user!
+      const pending = await getPendingDelivery(phone)
+      if (pending) {
+        return {
+          message: pendingPrompt(pending),
+          session: createSession('awaiting_finish', { employee }),
+        }
+      }
+      return deliverNextVideo(phone, employee)
+    }
+
+    const fresh = createSession('registration_employeeId', {
+      registration: {},
+      registrationClientId: user?.id,
+    })
+    return askRegistration(fresh, 'employeeId')
+  }
+
+  // Consent
+  if (step === 'consent' && session) {
+    if (input === 'consent_yes') {
+      const reg = session.registration
+      if (!reg?.employeeId || !reg.name || !reg.city || !reg.managerName) {
+        return askRegistration(
+          createSession('registration_employeeId', {
+            registration: {},
+            registrationClientId: session.registrationClientId,
+          }),
+          'employeeId'
+        )
+      }
+
+      const config = await getRegistrationConfig()
+      const profile: UserProfile = {
+        employeeId: reg.employeeId,
+        name: reg.name,
+        city: reg.city,
+        zone: reg.zone ?? '',
+        managerName: reg.managerName,
+        consentStatus: 'accepted',
+        consentAt: new Date().toISOString(),
+        consentVersion: config.consentVersion,
+      }
+
+      let clientId: string
+      try {
+        clientId = await saveUserProfile(phone, session.registrationClientId ?? null, profile)
+      } catch (error) {
+        console.error('[registration] Failed to save profile:', error)
+        return {
+          message: 'Sorry, we could not save your details. Please try again later.',
+          session,
+        }
+      }
+
+      const employee: EmployeeInfo = {
+        id: clientId,
+        employeeId: profile.employeeId,
+        name: profile.name,
+        city: profile.city,
+        zone: profile.zone ?? '',
+        managerName: profile.managerName,
+      }
+      return deliverNextVideo(phone, employee)
+    }
+
+    if (input === 'consent_no') {
       return {
-        message: clientSelection.body,
-        interactive: clientSelection,
-        session: newSession,
+        message:
+          'Thank you for your time. Your registration details have not been saved and your learning journey will not be started.',
+        session: null,
       }
     }
 
-    const client = availableClients?.[0]
-
-    // First-time or incomplete profile → collect Employee ID, name, city, manager
-    if (needsOnboarding(client)) {
-      const newSession = createSession('onboarding_employeeId')
-      newSession.onboarding = {}
-      newSession.onboardingClientId = client?.id
-      return askProfile(newSession, 'employeeId')
-    }
-
-    // Complete profile → proceed to category selection
-    const categorySelection = await buildCategorySelection()
-    const newSession = createSession('category_selection')
-    newSession.selectedClientId = client!.id
-    newSession.selectedClientName = client!.name
-
-    return {
-      message: categorySelection.body,
-      interactive: categorySelection,
-      session: newSession,
-    }
+    return consentPrompt(session)
   }
 
-  // Onboarding step: capture one profile field per message
-  if (session?.currentStep.startsWith('onboarding_')) {
-    const field = session.currentStep.slice('onboarding_'.length) as ProfileField
-    const value = text.trim().replace(/\s+/g, ' ')
+  // Registration details, one per message
+  if (step?.startsWith('registration_') && session) {
+    const field = step.slice('registration_'.length) as ProfileField
+    const registration = { ...session.registration }
 
-    if (!value || value.length > 100) {
-      return askProfile(session, field, 'That entry looks invalid. Please try again.')
+    if (!raw || raw.length > 100) {
+      return askRegistration(session, field, 'That entry looks invalid. Please try again.')
     }
 
-    const onboarding = { ...session.onboarding, [field]: value }
+    if (field === 'employeeId') {
+      const config = await getRegistrationConfig()
+      if (!validEmployeeId(raw, config.employeeIdPattern)) {
+        return askRegistration(
+          session,
+          field,
+          'That Employee ID format is not valid. Please enter it again.'
+        )
+      }
+      registration.employeeId = raw
+    }
+
+    if (field === 'name') {
+      registration.name = raw
+    }
+
+    if (field === 'city') {
+      const cities = await getCities()
+      if (cities.length > 0) {
+        const match = cities.find((c) => c.name.toLowerCase() === raw.toLowerCase())
+        if (!match) {
+          return askRegistration(
+            session,
+            'city',
+            `City not recognised. Available cities: ${cities.map((c) => c.name).join(', ')}`
+          )
+        }
+        registration.city = match.name
+        registration.zone = match.zone
+      } else {
+        registration.city = raw
+        registration.zone = ''
+      }
+    }
+
+    if (field === 'managerName') {
+      registration.managerName = raw
+    }
 
     const nextField = PROFILE_FIELDS[PROFILE_FIELDS.indexOf(field) + 1]
+    const updated = { ...session, registration }
+
     if (nextField) {
-      return askProfile({ ...session, onboarding }, nextField)
+      const cityNote =
+        field === 'city'
+          ? `Thank you! Your registered city is ${registration.city}, and your assigned zone is ${registration.zone || 'Not assigned'}.`
+          : undefined
+      return askRegistration(updated, nextField, cityNote)
     }
 
-    // All details collected — persist and open the menu
-    let clientId: string
-    try {
-      clientId = await saveUserProfile(phone, session.onboardingClientId ?? null, {
-        employeeId: onboarding.employeeId!,
-        name: onboarding.name!,
-        city: onboarding.city!,
-        managerName: onboarding.managerName!,
-      })
-    } catch (error) {
-      console.error('[onboarding] Failed to save profile:', error)
-      return {
-        message: 'Sorry, we could not save your details. Please try again later.',
-        session,
-      }
-    }
+    return consentPrompt(updated)
+  }
 
-    const menu = await buildCategorySelection()
-    const newSession = createSession('category_selection')
-    newSession.selectedClientId = clientId
-    newSession.selectedClientName = onboarding.name
+  // Assessment question
+  if (step === 'assessment_question' && session?.assessment) {
+    return answerQuestion(phone, session, interactiveReplyId, raw)
+  }
 
-    const interactive = {
-      ...menu,
-      body: `Thank you, ${onboarding.name}! Your details have been saved.\n\n${menu.body}`,
-    }
-
-    return {
-      message: interactive.body,
-      interactive,
-      session: newSession,
+  // Video is pending
+  if (step === 'awaiting_finish' && session) {
+    const pending = await getPendingDelivery(phone)
+    if (pending) return { message: pendingPrompt(pending), session }
+    if (isRegistered(user)) {
+      return deliverNextVideo(phone, user!)
     }
   }
 
-  // Handle client selection response
-  if (session?.currentStep === 'client_selection' && session.availableClients) {
-    const selectedClient = session.availableClients.find(c => c.id === input)
-
-    if (selectedClient) {
-      // Selected company has an incomplete profile → collect details first
-      if (needsOnboarding(selectedClient)) {
-        const newSession = createSession('onboarding_employeeId')
-        newSession.onboarding = {}
-        newSession.onboardingClientId = selectedClient.id
-        return askProfile(newSession, 'employeeId')
-      }
-
-      const categorySelection = await buildCategorySelection()
-      const newSession = createSession('category_selection')
-      newSession.selectedClientId = selectedClient.id
-      newSession.selectedClientName = selectedClient.name
-
-      return {
-        message: `Selected: ${selectedClient.name}\n\n${categorySelection.body}`,
-        interactive: categorySelection,
-        session: newSession,
-      }
-    }
-
-    // Invalid client selection
-    const clientSelection = buildClientSelection(session.availableClients)
-    return {
-      message: FLOW_MESSAGES.invalid_input,
-      interactive: clientSelection,
-      session,
-    }
-  }
-
-  // "0" / "main_menu" / "select_category" → restart to category menu (NOT client selection)
-  if ((input === '0' || input === 'main_menu' || input === 'select_category') && session) {
-    const categorySelection = await buildCategorySelection()
-    const newSession = createSession('category_selection')
-    // Preserve selected client
-    newSession.selectedClientId = session.selectedClientId
-    newSession.selectedClientName = session.selectedClientName
-    return {
-      message: FLOW_MESSAGES.restart,
-      interactive: categorySelection,
-      session: newSession,
-    }
-  }
-
-  // "back" / "#" → go back to previous step
-  if ((input === 'back' || input === '#') && session) {
-    const result = goBack(session)
-    if (!result) {
-      return { message: FLOW_MESSAGES.no_back, session }
-    }
-
-    const backStep = result.step
-    const backSession = result.session
-
-    // If going back to a dynamic step, rebuild the interactive payload
-    if (backStep === 'category_selection') {
-      const categorySelection = await buildCategorySelection()
-      return {
-        message: FLOW_MESSAGES.back,
-        interactive: categorySelection,
-        session: backSession,
-      }
-    }
-
-    // Handle dynamic year selection steps
-    if (backStep.endsWith('_year_selection')) {
-      const categoryId = backStep.replace('_year_selection', '')
-      const categories = await getCategories()
-      const categoryName = Object.keys(categories).reverse()[parseInt(categoryId) - 1]
-      const config = categories[categoryName]
-      const yearSelection = await buildYearSelection('category_year', categoryName, config.fiscalYears)
-      return {
-        message: yearSelection.body,
-        interactive: yearSelection,
-        session: backSession,
-      }
-    }
-
-    // Handle dynamic sub-category selection steps
-    if (backStep.endsWith('_sub_selection')) {
-      const categoryId = backStep.replace('_sub_selection', '')
-      const categories = await getCategories()
-      const categoryName = Object.keys(categories).reverse()[parseInt(categoryId) - 1]
-      const config = categories[categoryName]
-      const subSelection = await buildSubCategorySelection('category_sub', config.subCategories)
-      return {
-        message: subSelection.body,
-        interactive: subSelection,
-        session: backSession,
-      }
-    }
-
-    // For other known steps, use STEP_INTERACTIVE
-    if (STEP_INTERACTIVE[backStep]) {
-      return buildStepResult(backStep, backSession, FLOW_MESSAGES.back)
-    }
-
-    // Fallback: go to category selection
-    const categorySelection = await buildCategorySelection()
-    return {
-      message: FLOW_MESSAGES.back,
-      interactive: categorySelection,
-      session: createSession('category_selection'),
-    }
-  }
-
-  // No active session
-  if (!session) {
-    return {
-      message: "Please send 'Hi' to start.",
-      session: null,
-    }
-  }
-
-  const step = session.currentStep
-
-  // Category selection - dynamic
-  if (step === 'category_selection') {
-    const categoryMap = await buildCategoryMap()
-    const selected = categoryMap[input]
-
-    if (!selected) {
-      return { message: FLOW_MESSAGES.invalid_input, session }
-    }
-
-    const categories = await getCategories()
-    const config = categories[selected.category]
-
-    // If no fiscal years and no sub-categories, fetch documents directly
-    if (!config.fiscalYears.length && !config.subCategories.length) {
-      return fetchAndListDocuments(phone, {
-        ...pushStep(session, 'category_direct'),
-        category: selected.category,
-      })
-    }
-
-    // If has fiscal years, show year selection
-    if (config.fiscalYears.length > 0) {
-      const newSession = pushStep(session, selected.step)
-      newSession.category = selected.category
-      newSession.categoryId = input // Store the category ID for later lookup
-      const yearSelection = await buildYearSelection('category_year', selected.category, config.fiscalYears)
-      return {
-        message: yearSelection.body,
-        interactive: yearSelection,
-        session: newSession,
-      }
-    }
-
-    // If no fiscal years but has sub-categories, show sub-category selection
-    if (config.subCategories.length > 0) {
-      const newSession = pushStep(session, selected.step.replace('_year_selection', '_sub_selection'))
-      newSession.category = selected.category
-      newSession.categoryId = input
-      const subSelection = await buildSubCategorySelection('category_sub', config.subCategories)
-      return {
-        message: subSelection.body,
-        interactive: subSelection,
-        session: newSession,
-      }
-    }
-
-    // Fallback
-    return { message: FLOW_MESSAGES.invalid_input, session }
-  }
-
-  // Dynamic year selection steps
-  if (step.endsWith('_year_selection')) {
-    const categoryId = step.replace('_year_selection', '')
-    const categories = await getCategories()
-    const categoryName = Object.keys(categories).reverse()[parseInt(categoryId) - 1]
-    const config = categories[categoryName]
-
-    const yearMap = buildYearMapForCategory(categoryId, config.fiscalYears, config.subCategories.length > 0)
-    const yearEntry = yearMap[input]
-
-    if (!yearEntry) {
-      return { message: FLOW_MESSAGES.invalid_input, session }
-    }
-
-    const updatedSession = pushStep(session, yearEntry.nextStep)
-    updatedSession.fiscalYear = yearEntry.year
-    updatedSession.categoryId = categoryId
-
-    // If next step is fetch_documents, query and list
-    if (yearEntry.nextStep === 'fetch_documents') {
-      return fetchAndListDocuments(phone, updatedSession)
-    }
-
-    // Otherwise show sub-category menu
-    const subSelection = await buildSubCategorySelection('category_sub', config.subCategories)
-    return {
-      message: subSelection.body,
-      interactive: subSelection,
-      session: updatedSession,
-    }
-  }
-
-  // Dynamic sub-category selection steps
-  if (step.endsWith('_sub_selection')) {
-    const categoryId = session.categoryId || step.replace('_sub_selection', '')
-    const categories = await getCategories()
-    const categoryName = Object.keys(categories).reverse()[parseInt(categoryId) - 1]
-    const config = categories[categoryName]
-
-    // Download All for sub-category steps with download_all option
-    if (input === 'download_all') {
-      try {
-        const documents = await getFilteredDocuments(phone, categoryName, session.fiscalYear)
-
-        if (documents.length === 0) {
-          const categorySelection = await buildCategorySelection()
-          return {
-            message: FLOW_MESSAGES.no_documents,
-            interactive: categorySelection,
-            session: createSession('category_selection'),
-          }
-        }
-
-        const signedDocs = await Promise.all(
-          documents.map(async (d) => {
-            const url = await generateSignedUrl(d.filePath)
-            const filename = d.filePath.split('/').pop() || d.title
-            return { url, filename, caption: `Here is your document \u{1F4C4}\n\n${d.title}` }
-          })
-        )
-
-        // Audit log: every doc delivered
-        const accessStamp = new Date().toISOString()
-        await Promise.all(
-          documents.map((d) =>
-            recordDocumentAccess({
-              phone,
-              clientId: session.selectedClientId,
-              clientName: session.selectedClientName,
-              documentId: d.id,
-              documentTitle: d.title,
-              category: session.category,
-              fiscalYear: session.fiscalYear ?? null,
-              subCategory: session.subCategory ?? null,
-              accessedAt: accessStamp,
-              source: 'whatsapp',
-            })
-          )
-        )
-
-        return {
-          message: '',
-          documents: signedDocs,
-          followUp: buildFollowUp(),
-          session,
-        }
-      } catch (error) {
-        console.error('Error fetching all documents:', error)
-        return {
-          message: 'Something went wrong while fetching your documents. Please try again later.',
-          session: createSession('category_selection'),
-        }
-      }
-    }
-
-    const subMap = buildSubCategoryMapForCategory(config.subCategories)
-    const subCat = subMap[input]
-
-    if (!subCat) {
-      return { message: FLOW_MESSAGES.invalid_input, session }
-    }
-
-    const updatedSession = pushStep(session, 'fetch_documents')
-    updatedSession.subCategory = subCat
-
-    return fetchAndListDocuments(phone, updatedSession)
-  }
-
-  // Handle legacy static steps (for backward compatibility with existing sessions)
-  if (STEP_INTERACTIVE[step]) {
-    // Legacy handling - would need migration but keeping for backward compat
-    // This handles old sessions that might still be using the old step names
-  }
-
-  // Document list — user picks a number to download
-  if (step === 'list_documents' && session.documentList) {
-    // Download All documents in the current list
-    if (input === 'download_all_docs') {
-      try {
-        const docs = session.fullDocumentList || session.documentList
-        const signedDocs = await Promise.all(
-          docs.map(async (d) => {
-            const url = await generateSignedUrl(d.filePath)
-            const filename = d.filePath.split('/').pop() || d.title
-            return { url, filename, caption: `Here is your document \u{1F4C4}\n\n${d.title}` }
-          })
-        )
-
-        // Audit log: every doc delivered via Download All
-        const accessStamp = new Date().toISOString()
-        await Promise.all(
-          docs.map((d) =>
-            recordDocumentAccess({
-              phone,
-              clientId: session.selectedClientId,
-              clientName: session.selectedClientName,
-              documentId: d.id,
-              documentTitle: d.title,
-              category: session.category,
-              fiscalYear: session.fiscalYear ?? null,
-              subCategory: session.subCategory ?? null,
-              accessedAt: accessStamp,
-              source: 'whatsapp',
-            })
-          )
-        )
-
-        return {
-          message: '',
-          documents: signedDocs,
-          followUp: buildFollowUp(),
-          session,
-        }
-      } catch (error) {
-        console.error('Error generating signed URLs for download all:', error)
-        return {
-          message: 'Unable to retrieve documents. Please try again later.',
-          session,
-        }
-      }
-    }
-
-    const num = parseInt(input, 10)
-    if (isNaN(num) || num < 1 || num > session.documentList.length) {
-      return { message: FLOW_MESSAGES.invalid_input, session }
-    }
-
-    const doc = session.documentList[num - 1]
-    try {
-      const signedUrl = await generateSignedUrl(doc.filePath)
-      const filename = doc.filePath.split('/').pop() || doc.title
-
-      // Audit log: single-doc delivery
-      await recordDocumentAccess({
-        phone,
-        clientId: session.selectedClientId,
-        clientName: session.selectedClientName,
-        documentId: doc.id,
-        documentTitle: doc.title,
-        category: session.category,
-        fiscalYear: session.fiscalYear ?? null,
-        subCategory: session.subCategory ?? null,
-        accessedAt: new Date().toISOString(),
-        source: 'whatsapp',
-      })
-
-      return {
-        message: '',
-        document: {
-          url: signedUrl,
-          filename,
-          caption: `Here is your document \u{1F4C4}\n\n${doc.title}`,
-        },
-        followUp: buildFollowUp(),
-        session,
-      }
-    } catch (error) {
-      console.error('Error generating signed URL:', error)
-      return {
-        message: 'Unable to retrieve document. Please try again later.',
-        session,
-      }
-    }
-  }
-
-  // Fallback
   return {
-    message: FLOW_MESSAGES.invalid_input,
-    session,
-  }
-}
-
-async function fetchAndListDocuments(
-  phone: string,
-  session: BotSession
-): Promise<FlowResult> {
-  try {
-    const documents = await getFilteredDocuments(
-      phone,
-      session.category!,
-      session.fiscalYear,
-      session.subCategory,
-      session.selectedClientId
-    )
-
-    if (documents.length === 0) {
-      const categorySelection = await buildCategorySelection()
-      const newSession = createSession('category_selection')
-      // Preserve selected client
-      newSession.selectedClientId = session.selectedClientId
-      newSession.selectedClientName = session.selectedClientName
-      return {
-        message: FLOW_MESSAGES.no_documents,
-        interactive: categorySelection,
-        session: newSession,
-      }
-    }
-
-    // Cap at 8 documents (+ Download All = 9 rows in section; nav is a separate section)
-    const cappedDocs = documents.slice(0, 7)
-
-    const rows: { id: string; title: string }[] = []
-
-    // Add Download All when there are multiple documents
-    if (cappedDocs.length > 1) {
-      rows.push({ id: 'download_all_docs', title: 'Download All' })
-    }
-
-    cappedDocs.forEach((doc, i) => {
-      rows.push({ id: String(i + 1), title: truncate(doc.title, 24) })
-    })
-
-    const bodyText =
-      'Here are your documents \u{1F4C2}\n\nTap a document to download.'
-
-    const interactive: InteractivePayload = {
-      type: 'list',
-      body: bodyText,
-      buttonText: 'View Documents',
-      sections: [
-        {
-          title: 'Documents',
-          rows,
-        },
-        NAV_SECTION,
-      ],
-    }
-
-    return {
-      message: bodyText,
-      interactive,
-      session: {
-        ...session,
-        currentStep: 'list_documents',
-        documentList: cappedDocs,
-        fullDocumentList: documents,
-      },
-    }
-  } catch (error) {
-    console.error('Error fetching documents:', error)
-    const categorySelection = await buildCategorySelection()
-    return {
-      message: 'Something went wrong while fetching your documents. Please try again later.',
-      interactive: categorySelection,
-      session: createSession('category_selection'),
-    }
+    message: "Please send 'Hi' to start.",
+    session: null,
   }
 }
