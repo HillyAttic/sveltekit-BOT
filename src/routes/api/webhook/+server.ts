@@ -59,6 +59,7 @@ export async function POST(event: RequestEvent) {
     const rawBody = await event.request.text()
     const signature = event.request.headers.get('x-hub-signature-256')
     const appSecret = process.env.APP_SECRET
+    console.log(`Webhook POST: ${rawBody.length} bytes, signature=${signature ? 'yes' : 'no'}`)
 
     if (!appSecret) {
       console.error('APP_SECRET environment variable is missing')
@@ -76,8 +77,11 @@ export async function POST(event: RequestEvent) {
     const parsed = parseWebhookPayload(JSON.parse(rawBody))
 
     if (!parsed) {
+      console.log('Webhook: no message in payload (status/other event)')
       return json({ status: 'ok' }, { status: 200 })
     }
+
+    console.log(`Webhook message ${parsed.messageId} from ${parsed.from}`)
 
     if (isDuplicate(parsed.messageId)) {
       console.log(`Skipping duplicate message: ${parsed.messageId}`)
@@ -108,6 +112,7 @@ async function handleMessage(parsed: {
     const sanitizedText = sanitizeMessageBody(text)
 
     const users = await findAllUsersByPhone(normalizedPhone)
+    console.log(`Users found for ${normalizedPhone}: ${users.length}`)
 
     if (users.length === 0) {
       await sendMessage(
