@@ -31,6 +31,9 @@ export interface User {
   phones: string[]
   name: string
   gstNumber?: string
+  employeeId?: string
+  city?: string
+  managerName?: string
 }
 
 export interface Document {
@@ -226,9 +229,38 @@ export async function findAllUsersByPhone(phone: string): Promise<UserWithId[]> 
       id: doc.id,
       phones: data.phones || (data.phone ? [data.phone] : []),
       name: data.name,
-      gstNumber: data.gstNumber
+      gstNumber: data.gstNumber,
+      employeeId: data.employeeId,
+      city: data.city,
+      managerName: data.managerName
     }
   })
+}
+
+/**
+ * Save onboarding details for a phone number. Creates the user record when the
+ * number is not enrolled yet; otherwise merges into the existing document.
+ * Returns the Firestore document ID.
+ */
+export async function saveUserProfile(
+  phone: string,
+  clientId: string | null,
+  profile: { employeeId: string; name: string; city: string; managerName: string }
+): Promise<string> {
+  const db = getFirestore()
+  const normalizedPhone = normalizePhone(phone)
+
+  let id: string
+  if (clientId) {
+    await db.collection('users').doc(clientId).update(profile)
+    id = clientId
+  } else {
+    const created = await db.collection('users').add({ phones: [normalizedPhone], ...profile })
+    id = created.id
+  }
+
+  userCache.delete(normalizedPhone)
+  return id
 }
 
 /**

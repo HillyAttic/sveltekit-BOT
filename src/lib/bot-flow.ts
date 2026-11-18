@@ -1,4 +1,4 @@
-import { getFilteredDocuments, getCategories, type Document } from './document-service'
+import { getFilteredDocuments, getCategories, saveUserProfile, type Document } from './document-service'
 import { generateSignedUrl } from './storage-service'
 import { recordDocumentAccess } from './chat-logger'
 import { getPendingDelivery, markDeliveryComplete } from './reminder-service'
@@ -14,9 +14,19 @@ export interface BotSession {
   fullDocumentList?: Document[]
   selectedClientId?: string
   selectedClientName?: string
-  availableClients?: Array<{ id: string; name: string }>
+  availableClients?: BotClient[]
+  onboarding?: Partial<Record<ProfileField, string>>
+  onboardingClientId?: string
   createdAt: string
   expiresAt: string
+}
+
+export interface BotClient {
+  id: string
+  name: string
+  employeeId?: string
+  city?: string
+  managerName?: string
 }
 
 export type InteractivePayload =
@@ -80,6 +90,36 @@ const NAV_SECTION = {
     { id: 'back', title: 'Back' },
     { id: 'main_menu', title: 'Main Menu' },
   ],
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding: details collected the first time an employee says Hi
+// ---------------------------------------------------------------------------
+type ProfileField = 'employeeId' | 'name' | 'city' | 'managerName'
+
+const PROFILE_FIELDS: ProfileField[] = ['employeeId', 'name', 'city', 'managerName']
+
+const PROFILE_PROMPTS: Record<ProfileField, string> = {
+  employeeId:
+    'Welcome to Edventure Learning \u{1F44B}\n\nLet\'s set up your profile.\n\n1/4 — Please enter your Employee ID:',
+  name: '2/4 — Please enter your full name:',
+  city: '3/4 — Please enter your city:',
+  managerName: '4/4 — Please enter your manager\'s name:',
+}
+
+function needsOnboarding(client?: BotClient): boolean {
+  return !(
+    client?.employeeId?.trim() &&
+    client?.city?.trim() &&
+    client?.managerName?.trim()
+  )
+}
+
+function askProfile(session: BotSession, field: ProfileField, note?: string): FlowResult {
+  return {
+    message: note ? `${note}\n\n${PROFILE_PROMPTS[field]}` : PROFILE_PROMPTS[field],
+    session: { ...session, currentStep: `onboarding_${field}` },
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -405,7 +445,7 @@ export async function processMessage(
   text: string,
   session: BotSession | null,
   interactiveReplyId?: string,
-  availableClients?: Array<{ id: string; name: string }>
+  availableClients?: BotClient[]
 ): Promise<FlowResult> {
   // If an interactive reply ID is present, use it as the effective input.
   // "back" maps to "#" so the existing back-handling logic works.
@@ -433,9 +473,9 @@ export async function processMessage(
     session = { ...session, stepHistory: [] }
   }
 
-  // "hi" / "hello" → check if client selection is needed
+  // "hi" / "hello" → client selection (if needed), onboarding, then the menu
   if (input === 'hi' || input === 'hello') {
-    // If multiple clients available, show client selection
+    // If multiple clients available, show client selection first
     if (availableClients && availableClients.length > 1) {
       const clientSelection = buildClientSelection(availableClients)
       const newSession = createSession('client_selection')
@@ -447,19 +487,75 @@ export async function processMessage(
       }
     }
 
-    // Single client or no availableClients passed - proceed to category selection
+    const client = availableClients?.[0]
+
+    // First-time or incomplete profile → collect Employee ID, name, city, manager
+    if (needsOnboarding(client)) {
+      const newSession = createSession('onboarding_employeeId')
+      newSession.onboarding = {}
+      newSession.onboardingClientId = client?.id
+      return askProfile(newSession, 'employeeId')
+    }
+
+    // Complete profile → proceed to category selection
     const categorySelection = await buildCategorySelection()
     const newSession = createSession('category_selection')
-
-    // If single client, auto-select it
-    if (availableClients && availableClients.length === 1) {
-      newSession.selectedClientId = availableClients[0].id
-      newSession.selectedClientName = availableClients[0].name
-    }
+    newSession.selectedClientId = client!.id
+    newSession.selectedClientName = client!.name
 
     return {
       message: categorySelection.body,
       interactive: categorySelection,
+      session: newSession,
+    }
+  }
+
+  // Onboarding step: capture one profile field per message
+  if (session?.currentStep.startsWith('onboarding_')) {
+    const field = session.currentStep.slice('onboarding_'.length) as ProfileField
+    const value = text.trim().replace(/\s+/g, ' ')
+
+    if (!value || value.length > 100) {
+      return askProfile(session, field, 'That entry looks invalid. Please try again.')
+    }
+
+    const onboarding = { ...session.onboarding, [field]: value }
+
+    const nextField = PROFILE_FIELDS[PROFILE_FIELDS.indexOf(field) + 1]
+    if (nextField) {
+      return askProfile({ ...session, onboarding }, nextField)
+    }
+
+    // All details collected — persist and open the menu
+    let clientId: string
+    try {
+      clientId = await saveUserProfile(phone, session.onboardingClientId ?? null, {
+        employeeId: onboarding.employeeId!,
+        name: onboarding.name!,
+        city: onboarding.city!,
+        managerName: onboarding.managerName!,
+      })
+    } catch (error) {
+      console.error('[onboarding] Failed to save profile:', error)
+      return {
+        message: 'Sorry, we could not save your details. Please try again later.',
+        session,
+      }
+    }
+
+    const menu = await buildCategorySelection()
+    const newSession = createSession('category_selection')
+    newSession.selectedClientId = clientId
+    newSession.selectedClientName = onboarding.name
+
+    const interactive = {
+      ...menu,
+      body: `Thank you, ${onboarding.name}! Your details have been saved.\n\n${menu.body}`,
+    }
+
+    return {
+      message: interactive.body,
+      interactive,
       session: newSession,
     }
   }
@@ -469,6 +565,14 @@ export async function processMessage(
     const selectedClient = session.availableClients.find(c => c.id === input)
 
     if (selectedClient) {
+      // Selected company has an incomplete profile → collect details first
+      if (needsOnboarding(selectedClient)) {
+        const newSession = createSession('onboarding_employeeId')
+        newSession.onboarding = {}
+        newSession.onboardingClientId = selectedClient.id
+        return askProfile(newSession, 'employeeId')
+      }
+
       const categorySelection = await buildCategorySelection()
       const newSession = createSession('category_selection')
       newSession.selectedClientId = selectedClient.id

@@ -114,16 +114,16 @@ async function handleMessage(parsed: {
     const users = await findAllUsersByPhone(normalizedPhone)
     console.log(`Users found for ${normalizedPhone}: ${users.length}`)
 
-    if (users.length === 0) {
-      await sendMessage(
-        from,
-        'Hello \u{1F44B}\n\nWe could not find your account in our system.\n\nPlease contact your administrator to be enrolled.'
-      )
-      return
-    }
-
+    // Unknown numbers are not rejected: saying Hi starts the onboarding flow,
+    // which creates their employee record after collecting the four details.
     const session = await getBotSession(normalizedPhone)
-    const availableClients = users.map((u) => ({ id: u.id, name: u.name }))
+    const availableClients = users.map((u) => ({
+      id: u.id,
+      name: u.name,
+      employeeId: u.employeeId,
+      city: u.city,
+      managerName: u.managerName,
+    }))
     const result = await processMessage(
       normalizedPhone,
       sanitizedText,
@@ -144,17 +144,15 @@ async function handleMessage(parsed: {
 
     if (isGreeting) {
       await closeChatSession(normalizedPhone)
-      const primary = users[0]
       await recordChatActivity(normalizedPhone, {
-        clientId: primary.id,
-        clientName: primary.name,
+        clientId: users[0]?.id,
+        clientName: users[0]?.name,
       })
     } else if (isRestart && result.session) {
       await closeChatSession(normalizedPhone)
-      const primary = users[0]
       await recordChatActivity(normalizedPhone, {
-        clientId: result.session.selectedClientId || primary.id,
-        clientName: result.session.selectedClientName || primary.name,
+        clientId: result.session.selectedClientId || users[0]?.id,
+        clientName: result.session.selectedClientName || users[0]?.name,
       })
     } else {
       await recordChatActivity(normalizedPhone, {
