@@ -1,12 +1,12 @@
 [
   {
     "origin": [
-      "https://helpdesk.jpcoca.in",
-      "https://whatsappchatbot-one.vercel.app",
-      "http://localhost:3000"
+      "https://sveltekit-bot.websculptorsofficial.workers.dev",
+      "http://localhost:3000",
+      "http://localhost:5173"
     ],
     "method": ["GET", "PUT", "POST", "DELETE", "HEAD"],
-    "responseHeader": ["Content-Type", "Content-Length", "Content-Range"],
+    "responseHeader": ["Content-Type", "Content-Length", "Content-Range", "Range", "Accept-Ranges"],
     "maxAgeSeconds": 3600
   }
 ]

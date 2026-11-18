@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit'
-import { waitUntil as vercelWaitUntil } from '@vercel/functions'
+import { waitUntil } from 'cloudflare:workers'
 import type { RequestEvent } from './$types'
 import { validateSignature } from '#lib/validate-signature'
 import {
@@ -85,16 +85,9 @@ export async function POST(event: RequestEvent) {
     }
 
     // Return 200 immediately and keep the request alive while the bot replies.
-    const task = handleMessage(parsed)
-    const waitUntil = event.platform?.context?.waitUntil
-    if (waitUntil) {
-      waitUntil(task)
-    } else if (process.env.VERCEL) {
-      vercelWaitUntil(task)
-    } else {
-      // ponytail: no waitUntil outside Vercel/Cloudflare; fire-and-forget.
-      void task
-    }
+    // adapter-cloudflare v8 no longer sets event.platform, so pull waitUntil
+    // from the Workers runtime module (stubbed as a no-op in dev).
+    waitUntil(handleMessage(parsed))
 
     return json({ status: 'ok' }, { status: 200 })
   } catch (error) {
