@@ -95,7 +95,8 @@ const CONSENT_TEXT =
 
 const CONSENT_BUTTONS = [
   { id: 'consent_yes', title: 'YES - I Consent' },
-  { id: 'consent_no', title: 'NO - I Do Not Consent' },
+  // WhatsApp rejects reply button titles over 20 characters.
+  { id: 'consent_no', title: 'NO - Do Not Consent' },
 ]
 
 function isRegistered(user?: BotUser | null): boolean {

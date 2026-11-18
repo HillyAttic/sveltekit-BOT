@@ -105,6 +105,9 @@ describe('updated WhatsApp flow', () => {
     expect(step.session?.currentStep).toBe('consent')
     expect(step.message).toContain('zone is North')
     expect(step.interactive?.type).toBe('button')
+    if (step.interactive?.type === 'button') {
+      for (const b of step.interactive.buttons) expect(b.title.length).toBeLessThanOrEqual(20)
+    }
 
     step = await processMessage('91999', 'no', step.session, 'consent_no', null)
     expect(step.session).toBeNull()
