@@ -117,7 +117,7 @@ async function handleMessage(parsed: {
     if (users.length === 0) {
       await sendMessage(
         from,
-        'Hello \u{1F44B}\n\nWe could not find your account in our system.\n\nPlease contact support or register to access your documents.'
+        'Hello \u{1F44B}\n\nWe could not find your account in our system.\n\nPlease contact your administrator to be enrolled.'
       )
       return
     }

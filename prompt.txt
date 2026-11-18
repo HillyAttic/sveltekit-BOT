@@ -1,0 +1,162 @@
+# PART G: DYNAMIC REMINDER MANAGEMENT SYSTEM
+
+Create a dedicated **Reminder Management** section in the Edventure Admin Panel. The administrator must have complete control over reminder timing, frequency, message content, and activation status.
+
+## 1. Customizable Reminder Schedule
+
+Allow the admin to configure when reminders should be sent if an employee does not type FINISH after receiving a video.
+
+Provide the following configuration options:
+
+- Enable / Disable Reminders
+- Reminder Trigger: Time after video delivery
+- Reminder Frequency
+- Number of Reminders
+- Reminder Interval
+- Custom Reminder Time
+- Reminder Message
+- Active / Inactive Status
+
+Example default configuration:
+
+| Reminder | Trigger Time | Status |
+|---|---|---|
+| Reminder 1 | 20 Minutes | Enabled |
+| Reminder 2 | 1 Hour | Enabled |
+| Reminder 3 | 4 Hours | Enabled |
+| Reminder 4 | 6 Hours | Enabled |
+| Reminder 5 | 24 Hours | Enabled |
+
+These timings must be editable by the admin.
+
+## 2. Admin Reminder Configuration Interface
+
+Provide an intuitive interface where the admin can:
+
+- Add a new reminder.
+- Edit an existing reminder.
+- Delete a reminder.
+- Change reminder timing.
+- Reorder reminders.
+- Enable or disable individual reminders.
+- Configure different reminder messages.
+- Set the maximum number of reminders.
+- Save reminder configurations.
+- Apply configurations to all videos or individual learning modules.
+
+Example:
+
+**Reminder Configuration**
+
+| Setting | Admin Input |
+|---|---|
+| First Reminder | 30 Minutes |
+| Second Reminder | 2 Hours |
+| Third Reminder | 5 Hours |
+| Fourth Reminder | 12 Hours |
+| Fifth Reminder | 24 Hours |
+
+The admin should be able to add unlimited reminder steps, subject to WhatsApp messaging policies and operational limits.
+
+## 3. Dynamic Reminder Workflow
+
+When a video is delivered:
+
+1. Record the video delivery timestamp.
+2. Load the reminder configuration from the Admin Panel.
+3. Schedule reminders according to the configured intervals.
+4. Before sending every reminder, check the employee's latest video completion status.
+
+**Decision: Has the employee sent FINISH?**
+
+YES:
+- Mark the video as completed (self-reported).
+- Cancel all remaining scheduled reminders.
+- Record the completion timestamp.
+- Trigger the corresponding assessment.
+- Do not send further video reminders.
+
+NO:
+- Send the scheduled reminder.
+- Keep the video status as Pending.
+- Continue to the next configured reminder.
+
+If the user sends FINISH between two scheduled reminders, the system must immediately cancel all remaining reminders and trigger the next learning activity.
+
+## 4. Custom Reminder Messages
+
+Allow admins to create and edit reminder message templates.
+
+Examples:
+
+**First Reminder:**
+"Hi! We noticed that you haven't confirmed completion of today's Edventure learning video. Please watch the video and type FINISH once completed."
+
+**Second Reminder:**
+"Friendly reminder! Your learning video is still pending. Complete it to unlock your assessment."
+
+**Final Reminder:**
+"Your Edventure learning activity is still incomplete. Please complete the video and type FINISH to continue your learning journey."
+
+Support dynamic variables such as:
+- Employee Name
+- Video Title
+- Module Number
+- Reminder Number
+
+## 5. Reminder Tracking in Admin Panel
+
+Provide a reminder history for each employee.
+
+Display:
+
+- Employee Name
+- Employee ID
+- Video Title
+- Video Delivery Time
+- Scheduled Reminder Time
+- Actual Reminder Sent Time
+- Reminder Number
+- Reminder Delivery Status
+- Completion Status
+- Next Scheduled Reminder
+
+Possible statuses:
+
+- Scheduled
+- Sent
+- Delivered
+- Failed
+- Cancelled
+- Completed
+
+## 6. Important Backend Logic
+
+- Reminder timings must be calculated from the original video delivery timestamp.
+- The admin's configured schedule must be stored in the database.
+- Every reminder must check the latest completion status before sending.
+- Receiving FINISH must immediately cancel all pending reminders.
+- Duplicate reminders must be prevented.
+- Failed reminders should be logged and handled according to retry settings.
+- If an admin modifies a reminder schedule, apply the updated configuration to future reminders and define how already scheduled reminders are handled.
+- Respect WhatsApp's 24-hour customer service window and applicable template-message requirements. A reminder outside the permitted window must use an approved WhatsApp template where required.
+- Use a background job scheduler or queue for reliable reminder execution.
+
+## 7. Final Admin Panel Navigation
+
+The Admin Panel should now include:
+
+1. Dashboard
+2. Employee Management
+3. Video & Learning Management
+4. Learning Sequence Builder
+5. Assessment Builder
+6. Question Bank
+7. Scorecards & Results
+8. Certificate Management
+9. Reminder Management
+10. Reports & Analytics
+11. City & Zone Management
+12. Settings
+
+The Reminder Management module must be connected to the Video Delivery and Completion Tracking systems.

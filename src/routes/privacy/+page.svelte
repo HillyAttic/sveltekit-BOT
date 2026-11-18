@@ -70,7 +70,7 @@
 
       <section>
         <div class="flex items-center gap-2 mb-4">
-          <div class="w-1 h-6 bg-[#2b8a3e]"></div>
+          <div class="w-1 h-6 bg-success"></div>
           <h2 class="text-xl font-display font-bold text-ink">Data Storage and Security</h2>
         </div>
         <p class="text-ink-secondary leading-relaxed">
@@ -123,7 +123,7 @@
 
       <section>
         <div class="flex items-center gap-2 mb-4">
-          <div class="w-1 h-6 bg-[#d9480f]"></div>
+          <div class="w-1 h-6 bg-accent"></div>
           <h2 class="text-xl font-display font-bold text-ink">Data Retention</h2>
         </div>
         <p class="text-ink-secondary leading-relaxed">

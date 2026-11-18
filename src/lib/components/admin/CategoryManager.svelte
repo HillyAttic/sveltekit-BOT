@@ -161,7 +161,7 @@
               <span class="eyebrow">Sub-Categories</span>
               <button
                 onclick={() => addSubCategory(name)}
-                class="text-[10px] font-bold uppercase tracking-wider text-[#0c8599] hover:text-[#0b7285] flex items-center gap-1"
+                class="text-[10px] font-bold uppercase tracking-wider text-[#0891b2] hover:text-[#0e7490] flex items-center gap-1"
               >
                 + Add Sub
               </button>
@@ -171,7 +171,7 @@
                 <span class="text-[11px] text-ink-muted italic">No sub-categories</span>
               {:else}
                 {#each config.subCategories as sub (sub)}
-                  <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium bg-[#0c8599]/10 text-[#0c8599] border border-[#0c8599]/20">
+                  <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium bg-[#0891b2]/10 text-[#0891b2] border border-[#0891b2]/20">
                     {sub}
                     <button onclick={() => deleteSubCategory(name, sub)} class="hover:text-danger transition-colors" aria-label="Remove {sub}">
                       <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>

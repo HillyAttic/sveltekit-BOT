@@ -60,14 +60,14 @@
           </p>
         </div>
 
-        <div class="border-2 border-[#0c8599]/20 bg-[#0c8599]/5 p-5 mt-4 relative">
-          <div class="absolute top-0 left-0 w-2 h-full bg-[#0c8599]"></div>
-          <p class="eyebrow text-[#0c8599] mb-2">Option 2: Via Email</p>
+        <div class="border-2 border-teal/20 bg-teal/5 p-5 mt-4 relative">
+          <div class="absolute top-0 left-0 w-2 h-full bg-teal"></div>
+          <p class="eyebrow text-teal mb-2">Option 2: Via Email</p>
           <p class="text-ink-secondary text-sm">
             Send an email to{' '}
-            <span class="font-mono bg-[#0c8599]/10 text-[#0c8599] px-2 py-1 border border-[#0c8599]/20">[email]</span>{' '}
+            <span class="font-mono bg-teal/10 text-teal px-2 py-1 border border-teal/20">[email]</span>{' '}
             with the subject{' '}
-            <span class="font-mono bg-[#0c8599]/10 text-[#0c8599] px-2 py-1 border border-[#0c8599]/20">"Data Deletion Request"</span>{' '}
+            <span class="font-mono bg-teal/10 text-teal px-2 py-1 border border-teal/20">"Data Deletion Request"</span>{' '}
             and include your WhatsApp phone number in the message.
           </p>
         </div>
@@ -75,7 +75,7 @@
 
       <section>
         <div class="flex items-center gap-2 mb-4">
-          <div class="w-1 h-6 bg-[#0c8599]"></div>
+          <div class="w-1 h-6 bg-teal"></div>
           <h2 class="text-xl font-display font-bold text-ink">Processing Time</h2>
         </div>
         <p class="text-ink-secondary leading-relaxed">
@@ -86,7 +86,7 @@
 
       <section>
         <div class="flex items-center gap-2 mb-4">
-          <div class="w-1 h-6 bg-[#d9480f]"></div>
+          <div class="w-1 h-6 bg-accent"></div>
           <h2 class="text-xl font-display font-bold text-ink">Data Retention Exceptions</h2>
         </div>
         <p class="text-ink-secondary mb-3">
@@ -98,8 +98,8 @@
             'Fraud prevention and security purposes',
             'Resolving disputes or enforcing agreements',
           ] as item, i (i)}
-            <div class="flex items-start gap-3 pl-3 py-1.5 border-l-2 border-[#d9480f]/30">
-              <span class="text-[#d9480f] font-bold text-sm leading-none mt-0.5">&#8226;</span>
+            <div class="flex items-start gap-3 pl-3 py-1.5 border-l-2 border-accent/30">
+              <span class="text-accent font-bold text-sm leading-none mt-0.5">&#8226;</span>
               <span class="text-sm text-ink-secondary">{item}</span>
             </div>
           {/each}

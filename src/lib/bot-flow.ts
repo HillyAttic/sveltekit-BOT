@@ -1,6 +1,7 @@
 import { getFilteredDocuments, getCategories, type Document } from './document-service'
 import { generateSignedUrl } from './storage-service'
 import { recordDocumentAccess } from './chat-logger'
+import { getPendingDelivery, markDeliveryComplete } from './reminder-service'
 
 export interface BotSession {
   currentStep: string
@@ -48,11 +49,11 @@ export interface FlowResult {
 // ---------------------------------------------------------------------------
 const FLOW_MESSAGES = {
   user_not_found:
-    'Hello \u{1F44B}\n\nWe could not find your account in our system.\n\nPlease contact support or register to access your documents.',
+    'Hello \u{1F44B}\n\nWe could not find your account in our system.\n\nPlease contact your administrator to be enrolled.',
   client_selection:
     'Hello \u{1F44B}\n\nYou are registered with us under multiple companies.\n\nPlease select which company\'s documents you want to access:',
   category_selection:
-    'Hello I\'m Nova \u{1F44B}\n\nWelcome to JPCO Client Document Service.\n\nPlease select a document category:',
+    'Hello I\'m Nova \u{1F44B}\n\nWelcome to Edventure Learning.\n\nPlease select a learning category:',
   audit_year: 'You selected: Audit Report \u{1F4CA}\n\nPlease select Financial Year:',
   financial_year:
     'You selected: Financial Statements \u{1F4CA}\n\nPlease select Financial Year:',
@@ -413,6 +414,18 @@ export async function processMessage(
     input = interactiveReplyId === 'back' ? '#' : interactiveReplyId.trim()
   } else {
     input = text.toLowerCase().trim()
+  }
+
+  // FINISH handling: mark any pending video delivery complete + cancel reminders
+  if (input === 'finish') {
+    const pending = await getPendingDelivery(phone)
+    if (pending) {
+      await markDeliveryComplete(pending.id!)
+      return {
+        message: 'Great job! Your learning video has been marked as completed. Your assessment is now unlocked.',
+        session,
+      }
+    }
   }
 
   // Ensure stepHistory exists for legacy sessions

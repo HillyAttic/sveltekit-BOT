@@ -44,8 +44,8 @@
 
   function getAvatarColor(name: string): string {
     const colors = [
-      'bg-[#e8590c]', 'bg-[#0c8599]', 'bg-[#2b8a3e]', 'bg-[#c92a2a]',
-      'bg-[#7048e8]', 'bg-[#d9480f]', 'bg-[#1098ad]', 'bg-[#e67700]',
+      'bg-[#2563eb]', 'bg-[#0891b2]', 'bg-[#16a34a]', 'bg-[#dc2626]',
+      'bg-[#7048e8]', 'bg-[#1d4ed8]', 'bg-[#1098ad]', 'bg-[#d97706]',
     ]
     let hash = 0
     for (let i = 0; i < name.length; i++) {
@@ -73,7 +73,7 @@
         type="text"
         bind:value={searchQuery}
         placeholder="Search clients..."
-        class="w-full px-3 py-2 pl-9 bg-sidebar-hover border border-sidebar-border rounded text-sm text-ink-inverse placeholder:text-ink-muted/50 focus:outline-none focus:border-accent/50 transition-colors"
+        class="w-full px-3 py-2 pl-9 bg-sidebar-hover border border-sidebar-border rounded text-sm text-ink placeholder:text-ink-muted/50 focus:outline-none focus:border-accent/50 transition-colors"
       />
       <svg class="w-4 h-4 text-ink-muted/50 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -81,7 +81,7 @@
       {#if searchQuery}
         <button
           onclick={() => (searchQuery = '')}
-          class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center hover:bg-white/10 rounded text-ink-muted hover:text-ink-inverse transition-colors"
+          class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center hover:bg-white/10 rounded text-ink-muted hover:text-ink transition-colors"
           aria-label="Clear search"
         >
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
@@ -121,7 +121,7 @@
               {/if}
             </div>
             <div class="flex-1 min-w-0">
-              <div class="text-sm font-semibold truncate {isSelected ? 'text-accent' : 'text-ink-inverse'}">
+              <div class="text-sm font-semibold truncate {isSelected ? 'text-accent' : 'text-ink'}">
                 {client.name}
               </div>
               <div class="text-[11px] text-ink-muted font-mono truncate mt-0.5">

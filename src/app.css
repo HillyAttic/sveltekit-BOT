@@ -5,17 +5,17 @@
 @tailwind utilities;
 
 :root {
-  --color-sidebar: #0f1117;
-  --color-sidebar-hover: #1a1d27;
-  --color-sidebar-active: #232733;
-  --color-accent: #e8590c;
-  --color-accent-hover: #d9480f;
-  --color-teal: #0c8599;
-  --color-teal-hover: #0b7285;
-  --color-surface: #faf6f1;
-  --color-danger: #c92a2a;
-  --color-success: #2b8a3e;
-  --color-gold: #f59f00;
+  --color-sidebar: #ffffff;
+  --color-sidebar-hover: #f1f5f9;
+  --color-sidebar-active: #e2e8f0;
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --color-teal: #0891b2;
+  --color-teal-hover: #0e7490;
+  --color-surface: #f8fafc;
+  --color-danger: #dc2626;
+  --color-success: #16a34a;
+  --color-gold: #f59e0b;
 }
 
 * {
@@ -28,26 +28,16 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--color-surface);
-  color: #1a1626;
+  color: #0f172a;
   letter-spacing: -0.01em;
 }
 
 ::selection {
-  background: rgba(232, 89, 12, 0.25);
-  color: #1a1626;
+  background: rgba(37, 99, 235, 0.25);
+  color: #0f172a;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.015;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 256px 256px;
-}
+body::before { display: none; }
 
 ::-webkit-scrollbar {
   width: 5px;

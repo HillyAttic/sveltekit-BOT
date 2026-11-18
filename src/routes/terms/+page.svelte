@@ -51,7 +51,7 @@
 
       <section>
         <div class="flex items-center gap-2 mb-4">
-          <div class="w-1 h-6 bg-[#d9480f]"></div>
+          <div class="w-1 h-6 bg-accent"></div>
           <h2 class="text-xl font-display font-bold text-ink">User Responsibilities</h2>
         </div>
         <p class="text-ink-secondary mb-3">You agree to:</p>
@@ -64,8 +64,8 @@
             'Respect intellectual property rights',
             'Maintain the confidentiality of your account',
           ] as item, i (i)}
-            <div class="flex items-start gap-3 pl-3 py-1.5 border-l-2 border-[#d9480f]/30">
-              <span class="text-[#d9480f] font-bold text-sm leading-none mt-0.5">&#8226;</span>
+            <div class="flex items-start gap-3 pl-3 py-1.5 border-l-2 border-accent/30">
+              <span class="text-accent font-bold text-sm leading-none mt-0.5">&#8226;</span>
               <span class="text-sm text-ink-secondary">{item}</span>
             </div>
           {/each}
@@ -74,7 +74,7 @@
 
       <section>
         <div class="flex items-center gap-2 mb-4">
-          <div class="w-1 h-6 bg-[#0c8599]"></div>
+          <div class="w-1 h-6 bg-teal"></div>
           <h2 class="text-xl font-display font-bold text-ink">Document Submission</h2>
         </div>
         <p class="text-ink-secondary leading-relaxed">
@@ -120,7 +120,7 @@
 
       <section>
         <div class="flex items-center gap-2 mb-4">
-          <div class="w-1 h-6 bg-[#2b8a3e]"></div>
+          <div class="w-1 h-6 bg-success"></div>
           <h2 class="text-xl font-display font-bold text-ink">Changes to Terms</h2>
         </div>
         <p class="text-ink-secondary leading-relaxed">

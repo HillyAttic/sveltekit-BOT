@@ -22,11 +22,11 @@
 
   function getFileIcon(ext: string) {
     const map: Record<string, { bg: string; text: string; label: string; border: string }> = {
-      pdf: { bg: 'bg-[#c92a2a]/10', text: 'text-[#c92a2a]', label: 'PDF', border: 'border-[#c92a2a]/20' },
-      doc: { bg: 'bg-[#0c8599]/10', text: 'text-[#0c8599]', label: 'DOC', border: 'border-[#0c8599]/20' },
-      docx: { bg: 'bg-[#0c8599]/10', text: 'text-[#0c8599]', label: 'DOC', border: 'border-[#0c8599]/20' },
-      xls: { bg: 'bg-[#2b8a3e]/10', text: 'text-[#2b8a3e]', label: 'XLS', border: 'border-[#2b8a3e]/20' },
-      xlsx: { bg: 'bg-[#2b8a3e]/10', text: 'text-[#2b8a3e]', label: 'XLS', border: 'border-[#2b8a3e]/20' },
+      pdf: { bg: 'bg-[#dc2626]/10', text: 'text-[#dc2626]', label: 'PDF', border: 'border-[#dc2626]/20' },
+      doc: { bg: 'bg-[#0891b2]/10', text: 'text-[#0891b2]', label: 'DOC', border: 'border-[#0891b2]/20' },
+      docx: { bg: 'bg-[#0891b2]/10', text: 'text-[#0891b2]', label: 'DOC', border: 'border-[#0891b2]/20' },
+      xls: { bg: 'bg-[#16a34a]/10', text: 'text-[#16a34a]', label: 'XLS', border: 'border-[#16a34a]/20' },
+      xlsx: { bg: 'bg-[#16a34a]/10', text: 'text-[#16a34a]', label: 'XLS', border: 'border-[#16a34a]/20' },
       jpg: { bg: 'bg-[#7048e8]/10', text: 'text-[#7048e8]', label: 'IMG', border: 'border-[#7048e8]/20' },
       jpeg: { bg: 'bg-[#7048e8]/10', text: 'text-[#7048e8]', label: 'IMG', border: 'border-[#7048e8]/20' },
       png: { bg: 'bg-[#7048e8]/10', text: 'text-[#7048e8]', label: 'IMG', border: 'border-[#7048e8]/20' },
@@ -72,7 +72,7 @@
     <button
       onclick={handleView}
       disabled={isLoadingUrl}
-      class="w-7 h-7 flex items-center justify-center hover:bg-ink/5 text-ink-muted hover:text-[#0c8599] transition-colors disabled:opacity-50"
+      class="w-7 h-7 flex items-center justify-center hover:bg-ink/5 text-ink-muted hover:text-[#0891b2] transition-colors disabled:opacity-50"
       title="View"
     >
       {#if isLoadingUrl}
