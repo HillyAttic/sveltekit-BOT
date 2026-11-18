@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { processDueReminders } from '#lib/reminder-service'
+import { verifyAdminToken } from '#lib/auth-middleware'
 
 /**
  * Background scheduler hook. Point any cron service (Vercel Cron, GitHub
@@ -9,11 +10,12 @@ import { processDueReminders } from '#lib/reminder-service'
  */
 export const GET: RequestHandler = async ({ request, url }) => {
   const secret = process.env.CRON_SECRET
-  if (secret) {
-    const provided = url.searchParams.get('secret') || request.headers.get('authorization')
-    if (provided !== secret && provided !== `Bearer ${secret}`) {
-      return json({ error: 'Unauthorized' }, { status: 401 })
-    }
+  const provided = url.searchParams.get('secret') || request.headers.get('authorization')
+  const secretOk = secret ? provided === secret || provided === `Bearer ${secret}` : false
+  if (!secretOk) {
+    // No (or wrong) cron secret: fall back to an admin token.
+    const auth = await verifyAdminToken(request)
+    if (!auth.authorized) return json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
