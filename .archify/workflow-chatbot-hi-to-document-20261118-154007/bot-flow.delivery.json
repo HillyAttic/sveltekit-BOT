@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "8fdf4492-9d6b-4f10-ab03-97a35be7aa2c",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "D:\\sveltekit-BOT\\.archify\\workflow-chatbot-hi-to-document-20261118-154007\\candidate.json",
+  "output": "D:\\sveltekit-BOT\\.archify\\workflow-chatbot-hi-to-document-20261118-154007\\bot-flow.html",
+  "specification": {
+    "sha256": "e3bb37c09c99da6b710a856d1b2488de9bd37e64ac93d28aa0898fec7a042528",
+    "bytes": 9210
+  },
+  "artifact": {
+    "sha256": "8b0b50f90e63f382f40b332e10708b4abd65e1f560af3148ed23525c1494c454",
+    "bytes": 861039
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "c7fe254d-d9b3-4eb4-8eb5-849b514c1aa5",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "D:\\sveltekit-BOT\\.archify\\architecture-chatbot-flow-20261118-153139\\candidate.json",
+  "output": "D:\\sveltekit-BOT\\.archify\\architecture-chatbot-flow-20261118-153139\\chatbot-flow.html",
+  "specification": {
+    "sha256": "f8844b0dd34de86c3fbd4690c55e68cc4ec8e67d350b42bebec3eca93e041ea7",
+    "bytes": 6591
+  },
+  "artifact": {
+    "sha256": "d047c36839c6c174a58a6d6dabb7d490a617b928685481c59b9a6af285c8c170",
+    "bytes": 847969
+  }
+}

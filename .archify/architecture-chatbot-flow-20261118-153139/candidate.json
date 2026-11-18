@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "WhatsApp Document Bot — Message Flow",
+    "subtitle": "One inbound WhatsApp message, from signature check to signed document URL",
+    "locale": "en",
+    "output": ".archify/architecture-chatbot-flow-20261118-153139/chatbot-flow.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/HillyAttic/sveltekit-BOT.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "58edbf442985e2a63833ad0de26e59729f686b2d"
+    }
+  },
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "Client",
+      "sublabel": "Chats on WhatsApp",
+      "pos": [30, 100],
+      "size": [110, 60]
+    },
+    {
+      "id": "whatsapp",
+      "type": "cloud",
+      "label": "WhatsApp Cloud API",
+      "sublabel": "Graph API v22.0",
+      "pos": [170, 100],
+      "size": [130, 64],
+      "sources": [
+        { "path": "src/lib/message-sender.ts", "line": 20, "label": "Graph API v22.0" }
+      ]
+    },
+    {
+      "id": "webhook",
+      "type": "backend",
+      "label": "Webhook route",
+      "sublabel": "HMAC verify · dedupe",
+      "pos": [390, 100],
+      "size": [150, 70],
+      "sources": [
+        { "path": "src/routes/api/webhook/+server.ts", "line": 57, "end_line": 101, "label": "POST: verify · dedupe · 200" },
+        { "path": "src/lib/validate-signature.ts", "line": 7, "end_line": 20, "label": "HMAC-SHA256" }
+      ]
+    },
+    {
+      "id": "handler",
+      "type": "backend",
+      "label": "Message handler",
+      "sublabel": "user lookup · deferred work",
+      "pos": [655, 100],
+      "size": [150, 70],
+      "sources": [
+        { "path": "src/routes/api/webhook/+server.ts", "line": 103, "end_line": 210, "label": "handleMessage" }
+      ]
+    },
+    {
+      "id": "flow",
+      "type": "backend",
+      "label": "Bot flow",
+      "sublabel": "session state machine",
+      "pos": [940, 100],
+      "size": [150, 70],
+      "sources": [
+        { "path": "src/lib/bot-flow.ts", "line": 402, "end_line": 452, "label": "entry · greeting" },
+        { "path": "src/lib/bot-flow.ts", "line": 567, "end_line": 614, "label": "category step" },
+        { "path": "src/lib/bot-flow.ts", "line": 731, "end_line": 819, "label": "document delivery" }
+      ]
+    },
+    {
+      "id": "sender",
+      "type": "backend",
+      "label": "Message sender",
+      "sublabel": "text · list · document",
+      "pos": [390, 300],
+      "size": [150, 70],
+      "sources": [
+        { "path": "src/lib/message-sender.ts", "line": 25, "end_line": 63, "label": "retry with backoff" },
+        { "path": "src/lib/message-sender.ts", "line": 65, "end_line": 136, "label": "text · list · document" }
+      ]
+    },
+    {
+      "id": "firestore",
+      "type": "database",
+      "label": "Firestore",
+      "sublabel": "users · docs · sessions · config",
+      "pos": [630, 420],
+      "size": [200, 90],
+      "sources": [
+        { "path": "src/lib/document-service.ts", "line": 203, "end_line": 232, "label": "users by phone" },
+        { "path": "src/lib/document-service.ts", "line": 365, "end_line": 380, "label": "bot sessions" },
+        { "path": "src/lib/document-service.ts", "line": 419, "end_line": 434, "label": "config/categories" }
+      ]
+    },
+    {
+      "id": "storage",
+      "type": "database",
+      "label": "Firebase Storage",
+      "sublabel": "PDF files · signed URLs",
+      "pos": [925, 420],
+      "size": [180, 80],
+      "sources": [
+        { "path": "src/lib/storage-service.ts", "line": 6, "end_line": 16, "label": "signed read URL" }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Cloudflare Workers",
+      "wraps": ["webhook", "handler", "flow", "sender"],
+      "pad": 14
+    },
+    {
+      "kind": "region",
+      "label": "Google Cloud project",
+      "wraps": ["firestore", "storage"],
+      "pad": 14
+    }
+  ],
+  "connections": [
+    { "id": "user-whatsapp", "from": "user", "to": "whatsapp" },
+    { "id": "whatsapp-webhook", "from": "whatsapp", "to": "webhook", "label": "signed POST", "variant": "security" },
+    { "id": "webhook-handler", "from": "webhook", "to": "handler", "label": "waitUntil" },
+    { "id": "handler-flow", "from": "handler", "to": "flow", "label": "processMessage", "variant": "emphasis" },
+    {
+      "id": "handler-sender",
+      "from": "handler",
+      "to": "sender",
+      "label": "reply payload",
+      "fromSide": "left",
+      "toSide": "right",
+      "via": [[600, 135], [600, 335]]
+    },
+    { "id": "sender-whatsapp", "from": "sender", "to": "whatsapp", "label": "send reply", "fromSide": "left", "toSide": "bottom", "via": [[235, 335]] },
+    { "id": "handler-firestore", "from": "handler", "to": "firestore", "label": "users · sessions", "fromSide": "bottom", "toSide": "top" },
+    { "id": "flow-firestore", "from": "flow", "to": "firestore", "label": "categories · docs", "fromSide": "bottom", "toSide": "right", "via": [[1015, 355], [880, 355], [880, 465]] },
+    { "id": "flow-storage", "from": "flow", "to": "storage", "label": "signed URL · 60 min", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Intake guardrails",
+      "items": [
+        "Webhook answers 200 before replying; the work continues in waitUntil",
+        "X-Hub-Signature-256 is checked with HMAC-SHA256 before parsing",
+        "Message IDs are deduped in memory for 5 minutes",
+        "An unregistered phone gets a contact-support reply"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Conversation state",
+      "items": [
+        "Session lives in Firestore at sessions/{phone} and expires after 30 minutes",
+        "\"hi\" restarts the menu; step history powers Back and Main Menu",
+        "Categories come from config/categories, cached for 30 minutes",
+        "Multiple clients: buttons for 2–3, a list for 4+"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Document delivery",
+      "items": [
+        "Category → financial year → document type, or straight to the list",
+        "At most 7 documents are listed, plus a Download All row",
+        "Storage signed URLs expire after 60 minutes; WhatsApp fetches the file",
+        "Every delivered document appends to documentAccessLogs"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Admin side",
+      "items": [
+        "Categories, clients and files are managed from /admin",
+        "Those writes land in Firestore and Firebase Storage"
+      ]
+    }
+  ]
+}

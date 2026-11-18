@@ -1,0 +1,264 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Bot Flow — from \"hi\" to a delivered document",
+    "subtitle": "One conversation turn by turn: menu, pick, query, signed URL",
+    "locale": "en",
+    "output": ".archify/workflow-chatbot-hi-to-document-20261118-154007/bot-flow.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/HillyAttic/sveltekit-BOT.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "58edbf442985e2a63833ad0de26e59729f686b2d"
+    }
+  },
+  "lanes": [
+    { "id": "client", "label": "Client on WhatsApp" },
+    { "id": "bot", "label": "Bot flow" },
+    { "id": "data", "label": "Firestore & Storage" },
+    { "id": "detours", "label": "Other outcomes", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "open", "label": "Open", "fromCol": 0, "toCol": 1 },
+    { "id": "choose", "label": "Choose", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "deliver", "label": "Fetch & deliver", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["hi", "intake", "select", "pick", "narrow", "pick_year", "list", "pick_doc", "deliver", "get_file"],
+  "nodes": [
+    {
+      "id": "hi",
+      "lane": "client",
+      "col": 0,
+      "type": "external",
+      "label": "Sends hi",
+      "sublabel": "hello also starts",
+      "icon": "start"
+    },
+    {
+      "id": "intake",
+      "lane": "bot",
+      "col": 1,
+      "type": "backend",
+      "label": "User + session lookup",
+      "sublabel": "normalizes the phone",
+      "sources": [
+        { "path": "src/routes/api/webhook/+server.ts", "line": 111, "end_line": 137, "label": "lookup + load session" },
+        { "path": "src/lib/document-service.ts", "line": 203, "end_line": 232, "label": "findAllUsersByPhone" },
+        { "path": "src/lib/document-service.ts", "line": 365, "end_line": 380, "label": "session read/write" }
+      ]
+    },
+    {
+      "id": "select",
+      "lane": "bot",
+      "col": 2,
+      "type": "backend",
+      "label": "Company → category menu",
+      "sublabel": "company only for 2+ clients",
+      "icon": "decision",
+      "sources": [
+        { "path": "src/lib/bot-flow.ts", "line": 424, "end_line": 452, "label": "hi → menus" },
+        { "path": "src/lib/bot-flow.ts", "line": 455, "end_line": 478, "label": "client pick" },
+        { "path": "src/lib/bot-flow.ts", "line": 160, "end_line": 179, "label": "category list" }
+      ]
+    },
+    {
+      "id": "narrow",
+      "lane": "bot",
+      "col": 3,
+      "type": "backend",
+      "label": "Year → type menu",
+      "sublabel": "only steps the category has",
+      "icon": "decision",
+      "sources": [
+        { "path": "src/lib/bot-flow.ts", "line": 567, "end_line": 646, "label": "category → year" },
+        { "path": "src/lib/bot-flow.ts", "line": 649, "end_line": 722, "label": "type → fetch" }
+      ]
+    },
+    {
+      "id": "list",
+      "lane": "bot",
+      "col": 4,
+      "type": "backend",
+      "label": "Document list",
+      "sublabel": "7 rows + Download All",
+      "icon": "decision",
+      "sources": [
+        { "path": "src/lib/bot-flow.ts", "line": 828, "end_line": 893, "label": "fetchAndListDocuments" }
+      ]
+    },
+    {
+      "id": "deliver",
+      "lane": "bot",
+      "col": 5,
+      "type": "backend",
+      "label": "Sends the PDF",
+      "sublabel": "then a \"next document?\" menu",
+      "icon": "success",
+      "sources": [
+        { "path": "src/lib/bot-flow.ts", "line": 731, "end_line": 819, "label": "single document" },
+        { "path": "src/lib/bot-flow.ts", "line": 384, "end_line": 390, "label": "follow-up menu" }
+      ]
+    },
+    {
+      "id": "pick",
+      "lane": "client",
+      "col": 2,
+      "type": "external",
+      "label": "Picks company / category",
+      "sublabel": "reply id or number"
+    },
+    {
+      "id": "pick_year",
+      "lane": "client",
+      "col": 3,
+      "type": "external",
+      "label": "Picks year / type",
+      "sublabel": "Back and Main Menu here"
+    },
+    {
+      "id": "pick_doc",
+      "lane": "client",
+      "col": 4,
+      "type": "external",
+      "label": "Picks a document",
+      "sublabel": "or Download All"
+    },
+    {
+      "id": "get_file",
+      "lane": "client",
+      "col": 5,
+      "type": "external",
+      "label": "Gets the file",
+      "sublabel": "sender refills the menu",
+      "icon": "success"
+    },
+    {
+      "id": "d_user",
+      "lane": "data",
+      "col": 1,
+      "type": "database",
+      "label": "users · sessions",
+      "sublabel": "one doc per phone",
+      "sources": [
+        { "path": "src/lib/document-service.ts", "line": 203, "end_line": 232, "label": "users by phone" },
+        { "path": "src/lib/document-service.ts", "line": 365, "end_line": 380, "label": "sessions/{phone}" }
+      ]
+    },
+    {
+      "id": "d_config",
+      "lane": "data",
+      "col": 2,
+      "type": "database",
+      "label": "config/categories",
+      "sublabel": "years + types, 30-min cache",
+      "sources": [
+        { "path": "src/lib/document-service.ts", "line": 419, "end_line": 434, "label": "read categories" },
+        { "path": "src/lib/document-service.ts", "line": 386, "end_line": 414, "label": "30-min cache" }
+      ]
+    },
+    {
+      "id": "d_docs",
+      "lane": "data",
+      "col": 4,
+      "type": "database",
+      "label": "documents query",
+      "sublabel": "client + category + year + type",
+      "sources": [
+        { "path": "src/lib/document-service.ts", "line": 285, "end_line": 361, "label": "getFilteredDocuments" }
+      ]
+    },
+    {
+      "id": "d_storage",
+      "lane": "data",
+      "col": 5,
+      "type": "database",
+      "label": "Storage + access log",
+      "sublabel": "signed URL, 60 min",
+      "sources": [
+        { "path": "src/lib/storage-service.ts", "line": 6, "end_line": 16, "label": "signed read URL" },
+        { "path": "src/lib/chat-logger.ts", "line": 164, "end_line": 181, "label": "documentAccessLogs" }
+      ]
+    },
+    {
+      "id": "not_found",
+      "lane": "detours",
+      "col": 1,
+      "type": "backend",
+      "label": "No account",
+      "sublabel": "contact-support reply, stop",
+      "icon": "failure",
+      "sources": [
+        { "path": "src/routes/api/webhook/+server.ts", "line": 117, "end_line": 123, "label": "no user match" }
+      ]
+    },
+    {
+      "id": "no_docs",
+      "lane": "detours",
+      "col": 4,
+      "type": "backend",
+      "label": "No documents",
+      "sublabel": "message, then category menu",
+      "icon": "failure",
+      "sources": [
+        { "path": "src/lib/bot-flow.ts", "line": 841, "end_line": 852, "label": "empty result" }
+      ]
+    }
+  ],
+  "edges": [
+    { "id": "hi-intake", "from": "hi", "to": "intake" },
+    { "id": "intake-select", "from": "intake", "to": "select" },
+    { "id": "select-pick", "from": "select", "to": "pick" },
+    { "id": "pick-narrow", "from": "pick", "to": "narrow" },
+    { "id": "narrow-pick-year", "from": "narrow", "to": "pick_year" },
+    { "id": "pick-year-list", "from": "pick_year", "to": "list", "label": "year + type", "variant": "emphasis" },
+    { "id": "list-pick-doc", "from": "list", "to": "pick_doc" },
+    { "id": "pick-doc-deliver", "from": "pick_doc", "to": "deliver", "label": "single or all", "variant": "emphasis" },
+    { "id": "deliver-get-file", "from": "deliver", "to": "get_file", "label": "document message" },
+    { "id": "intake-user", "from": "intake", "to": "d_user" },
+    { "id": "select-config", "from": "select", "to": "d_config", "label": "menu options" },
+    { "id": "list-docs", "from": "list", "to": "d_docs", "label": "query" },
+    { "id": "deliver-storage", "from": "deliver", "to": "d_storage", "label": "sign URL" },
+    { "id": "user-not-found", "from": "d_user", "to": "not_found", "label": "0 matches", "role": "error", "variant": "security" },
+    { "id": "docs-empty", "from": "d_docs", "to": "no_docs", "label": "0 rows", "role": "error", "variant": "security" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Menus are configuration",
+      "items": [
+        "Categories, years and document types come from config/categories, cached 30 minutes",
+        "A category with no years and no types goes straight to the document list",
+        "At most 8 years are offered"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Steps that get skipped",
+      "items": [
+        "One company on the phone → no company menu",
+        "No sub-type configured → no type menu",
+        "At most 7 documents are listed, plus Download All"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Navigation",
+      "items": [
+        "Back replays the previous step from session history",
+        "0, main_menu and select_category return to categories and keep the client",
+        "An unknown pick re-asks the same menu; a session expires after 30 minutes"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Delivery",
+      "items": [
+        "Each document is a signed Storage URL valid for 60 minutes",
+        "Every delivery appends to documentAccessLogs",
+        "The follow-up button restarts at the category menu"
+      ]
+    }
+  ]
+}
