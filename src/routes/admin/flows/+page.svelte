@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { page } from '$app/state'
   import { auth } from '#lib/auth.svelte'
 
   interface FlowMessage { at: string; from: 'user' | 'bot'; text: string }
@@ -22,7 +23,8 @@
 
   let flows = $state<Flow[]>([])
   let loading = $state(true)
-  let query = $state('')
+  // Employees page links here with ?phone=… to show just that person's flows.
+  let query = $state(page.url.searchParams.get('phone') ?? '')
 
   const filtered = $derived(
     flows.filter((f) => {

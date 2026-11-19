@@ -85,7 +85,12 @@
               <td class="px-3 py-2">{e.city || '—'}</td>
               <td class="px-3 py-2">{e.zone || '—'}</td>
               <td class="px-3 py-2 font-mono text-xs">{e.phones?.[0] || '—'}</td>
-              <td class="px-3 py-2"><button onclick={() => remove(e.id)} class="text-xs text-danger hover:underline">Delete</button></td>
+              <td class="px-3 py-2">
+                {#if e.phones?.[0]}
+                  <a href={'/admin/flows?phone=' + encodeURIComponent(e.phones[0])} class="text-xs text-accent hover:underline">View Flow</a>
+                {/if}
+                <button onclick={() => remove(e.id)} class="text-xs text-danger hover:underline ml-3">Delete</button>
+              </td>
             </tr>
           {/each}
         </tbody>

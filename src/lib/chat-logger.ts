@@ -1,5 +1,6 @@
 import { getFirestore } from './firebase-admin'
 import { normalizePhone } from './phone'
+import { getSessionTimeoutMs } from './session-config'
 
 /**
  * Chat session record — one per distinct user "visit" (from first message
@@ -45,8 +46,6 @@ export interface DocumentAccessLog {
   accessedAt: string
   source: 'whatsapp' | 'admin'
 }
-
-const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000 // 30 min — matches session expiry
 
 /**
  * Find the active chat session document ID for a phone number.
@@ -109,7 +108,7 @@ export async function recordChatActivity(
       const data = sessionDoc.data() as ChatSessionLog
       const last = new Date(data.lastMessageAt).getTime()
 
-      if (now.getTime() - last < INACTIVITY_TIMEOUT_MS) {
+      if (now.getTime() - last < (await getSessionTimeoutMs())) {
         // Append to the existing flow
         await sessionDoc.ref.update({
           lastMessageAt: nowIso,

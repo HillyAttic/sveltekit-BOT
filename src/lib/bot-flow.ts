@@ -21,6 +21,10 @@ import {
   recordVideoDelivery,
   type VideoDelivery,
 } from './reminder-service'
+import { DEFAULT_SESSION_TIMEOUT_MINUTES, getSessionTimeoutMs } from './session-config'
+
+// Refreshed at the start of every processMessage call (Admin → Settings).
+let sessionTtlMs = DEFAULT_SESSION_TIMEOUT_MINUTES * 60 * 1000
 
 export interface EmployeeInfo extends EmployeeDetails {
   id?: string
@@ -114,7 +118,7 @@ function isRegistered(user?: BotUser | null): boolean {
 function createSession(
   step: string,
   overrides?: Partial<BotSession>,
-  ttlMs = 30 * 60 * 1000
+  ttlMs = sessionTtlMs
 ): BotSession {
   const now = Date.now()
   return {
@@ -448,6 +452,7 @@ export async function processMessage(
   interactiveReplyId?: string,
   user?: BotUser | null
 ): Promise<FlowResult> {
+  sessionTtlMs = await getSessionTimeoutMs()
   const raw = text.trim()
   const input = interactiveReplyId ? interactiveReplyId.trim() : raw.toLowerCase()
   const step = session?.currentStep

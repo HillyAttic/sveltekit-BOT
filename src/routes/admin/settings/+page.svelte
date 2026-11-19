@@ -2,8 +2,19 @@
   import { onMount } from 'svelte'
   import { listData, createData } from '#lib/admin-data'
 
-  interface Settings { id?: string; orgName: string; whatsappNumber: string; adminEmail: string }
-  let settings = $state<Settings>({ orgName: 'Edventure', whatsappNumber: '', adminEmail: '' })
+  interface Settings {
+    id?: string
+    orgName: string
+    whatsappNumber: string
+    adminEmail: string
+    sessionTimeoutMinutes?: number
+  }
+  let settings = $state<Settings>({
+    orgName: 'Edventure',
+    whatsappNumber: '',
+    adminEmail: '',
+    sessionTimeoutMinutes: 30,
+  })
   let loading = $state(true)
   let saving = $state(false)
   let toast = $state<string | null>(null)
@@ -21,7 +32,13 @@
   async function save() {
     saving = true
     try {
-      await createData('settings', { id: settings.id || 'app', orgName: settings.orgName, whatsappNumber: settings.whatsappNumber, adminEmail: settings.adminEmail })
+      await createData('settings', {
+        id: settings.id || 'app',
+        orgName: settings.orgName,
+        whatsappNumber: settings.whatsappNumber,
+        adminEmail: settings.adminEmail,
+        sessionTimeoutMinutes: Math.min(1440, Math.max(1, Math.round(settings.sessionTimeoutMinutes || 30))),
+      })
       showToast('Saved')
     } catch { showToast('Save failed') }
     finally { saving = false }
@@ -41,6 +58,10 @@
       </label>
       <label class="block text-xs text-ink-muted">Admin Email
         <input bind:value={settings.adminEmail} class="w-full px-3 py-2 border rounded text-sm mt-1" />
+      </label>
+      <label class="block text-xs text-ink-muted">Bot Session Timeout (minutes of inactivity)
+        <input type="number" min="1" max="1440" bind:value={settings.sessionTimeoutMinutes} class="w-full px-3 py-2 border rounded text-sm mt-1" />
+        <span class="block mt-1 text-[11px] text-ink-muted">After this many idle minutes the conversation session expires; users just send Hi to continue. 1–1440.</span>
       </label>
       <button onclick={save} disabled={saving} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
     </div>
