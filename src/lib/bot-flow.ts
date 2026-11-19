@@ -383,6 +383,15 @@ async function answerQuestion(
     : finishAssessment(phone, updated)
 }
 
+/** Failed quiz: offer a retake instead of asking the user to contact a manager. */
+function retakePrompt(body: string, session: BotSession): FlowResult {
+  return {
+    message: body,
+    interactive: { type: 'button', body, buttons: [{ id: 'retake_yes', title: 'Retake Test' }] },
+    session: { ...session, currentStep: 'awaiting_retake' },
+  }
+}
+
 async function finishAssessment(phone: string, session: BotSession): Promise<FlowResult> {
   const state = session.assessment!
   const employee = session.employee
@@ -431,8 +440,11 @@ async function finishAssessment(phone: string, session: BotSession): Promise<Flo
   }
 
   if (evaluation.result === 'FAIL') {
-    lines.push('', 'You did not meet the passing percentage. Please contact your manager for a retake.')
-    return { message: lines.join('\n'), session: createSession('done', { employee }) }
+    lines.push('', 'You did not meet the passing percentage. Tap Retake Test to try again.')
+    return retakePrompt(
+      lines.join('\n'),
+      createSession('awaiting_retake', { employee, assessment: state })
+    )
   }
 
   lines.push('', 'Congratulations! You are ready for the next learning module.')
@@ -476,6 +488,26 @@ export async function processMessage(
     await resetEmployeeProgress(phone, user!.employeeId)
     await resetUserProfile(phone)
     return beginRegistration(user)
+  }
+
+  // Failed assessment: the quiz repeats until it is passed — no way around it.
+  if (step === 'awaiting_retake' && session?.assessment) {
+    const assessment = session.assessment
+    if (input === 'retake_yes' || input === 'retake' || input === 'retake test') {
+      const fresh = createSession(
+        'assessment_question',
+        {
+          employee: session.employee,
+          assessment: { ...assessment, index: 0, answers: {}, startedAt: new Date().toISOString() },
+        },
+        2 * 60 * 60 * 1000
+      )
+      return questionResult(phone, fresh, 'Retaking the assessment. Good luck!')
+    }
+    return retakePrompt(
+      'You did not meet the passing percentage. Tap Retake Test when you are ready to try again.',
+      createSession('awaiting_retake', { employee: session.employee, assessment })
+    )
   }
 
   // Hi / Hello → resume, continue, or start registration

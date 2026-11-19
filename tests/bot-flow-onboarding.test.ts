@@ -215,4 +215,43 @@ describe('updated WhatsApp flow', () => {
     expect(step.message).toContain('Result: PASS')
     expect(step.message).toContain('completed all available learning modules')
   })
+
+  it('offers Retake Test after a fail, blocks Hi, and repeats until passed', async () => {
+    pending = {
+      id: 'd1',
+      phone: '91999',
+      videoTitle: 'Intro Video',
+      moduleNumber: '1',
+      status: 'pending',
+    }
+    moduleAvailable = false
+
+    let step = await processMessage('91999', 'finish', null, undefined, REGISTERED_USER)
+    expect(step.session?.currentStep).toBe('assessment_question')
+
+    // Wrong option (opt_1 = '5') → fail
+    step = await processMessage('91999', '5', step.session, 'opt_1', REGISTERED_USER)
+    expect(step.message).toContain('Result: FAIL')
+    expect(step.message).not.toContain('contact your manager')
+    expect(step.session?.currentStep).toBe('awaiting_retake')
+    expect(step.interactive?.type).toBe('button')
+    if (step.interactive?.type === 'button') {
+      expect(step.interactive.buttons[0].title).toBe('Retake Test')
+    }
+
+    // Hi cannot skip the failed quiz
+    step = await processMessage('91999', 'hi', step.session, undefined, REGISTERED_USER)
+    expect(step.session?.currentStep).toBe('awaiting_retake')
+
+    // Retake starts the same quiz from question 1
+    step = await processMessage('91999', 'retake', step.session, 'retake_yes', REGISTERED_USER)
+    expect(step.session?.currentStep).toBe('assessment_question')
+    expect(step.session?.assessment?.index).toBe(0)
+    expect(step.message).toContain('What is 2+2?')
+
+    // Passing the retake ends the loop
+    step = await processMessage('91999', '4', step.session, 'opt_0', REGISTERED_USER)
+    expect(step.message).toContain('Result: PASS')
+    expect(step.session?.currentStep).not.toBe('awaiting_retake')
+  })
 })

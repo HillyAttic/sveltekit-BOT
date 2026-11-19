@@ -8,6 +8,7 @@
   let assessments = $state<Assessment[]>([])
   let questions = $state<Question[]>([])
   let videos = $state<Video[]>([])
+  let editingId = $state<string | null>(null)
   let title = $state('')
   let selected = $state<string[]>([])
   let moduleId = $state('')
@@ -28,13 +29,27 @@
     finally { loading = false }
   }
 
-  async function add() {
-    if (!title.trim()) return
+  function reset() {
+    editingId = null; title = ''; selected = []; moduleId = ''
+  }
+
+  function edit(a: Assessment) {
+    editingId = a.id
+    title = a.title
+    selected = [...(a.questionIds ?? [])]
+    moduleId = a.moduleId ?? ''
+  }
+
+  async function save() {
+    if (!title.trim()) { showToast('Assessment title is required'); return }
+    const payload = { title: title.trim(), questionIds: selected, moduleId: moduleId || null }
     try {
-      await createData('assessments', { title: title.trim(), questionIds: selected, moduleId: moduleId || null })
-      title = ''; selected = []; moduleId = ''
+      if (editingId) await updateData('assessments', editingId, payload)
+      else await createData('assessments', payload)
+      showToast(editingId ? 'Assessment updated' : 'Assessment created')
+      reset()
       await load()
-    } catch { showToast('Failed to add') }
+    } catch { showToast('Failed to save') }
   }
 
   /** Map this assessment to one video (or clear the mapping). */
@@ -63,6 +78,7 @@
 <div class="p-6">
   <h2 class="text-xl font-bold text-ink mb-4">Assessment Builder</h2>
   <div class="bg-white border border-surface-border rounded p-4 mb-4 space-y-3 max-w-lg">
+    <h3 class="font-semibold text-ink text-sm">{editingId ? 'Edit assessment' : 'Create assessment'}</h3>
     <input bind:value={title} placeholder="Assessment title" class="w-full px-3 py-2 border rounded text-sm" />
     <div>
       <p class="text-xs text-ink-muted mb-1">Select questions</p>
@@ -79,7 +95,10 @@
         {#each videos as v (v.id)}<option value={v.id}>{videoLabel(v)}</option>{/each}
       </select>
     </label>
-    <button onclick={add} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded">Create Assessment</button>
+    <div class="flex gap-2">
+      <button onclick={save} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded">{editingId ? 'Save changes' : 'Create Assessment'}</button>
+      {#if editingId}<button onclick={reset} class="px-4 py-2 text-sm border border-surface-border rounded">Cancel</button>{/if}
+    </div>
   </div>
 
   {#if loading}<p class="text-ink-muted text-sm">Loading…</p>
@@ -97,6 +116,7 @@
               <option value="">— Not linked —</option>
               {#each videos as v (v.id)}<option value={v.id}>{videoLabel(v)}</option>{/each}
             </select>
+            <button onclick={() => edit(a)} class="text-xs text-accent hover:underline">Edit</button>
             <button onclick={() => remove(a.id)} class="text-xs text-danger hover:underline">Delete</button>
           </div>
         </div>

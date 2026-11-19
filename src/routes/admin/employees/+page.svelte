@@ -45,7 +45,7 @@
 
   function ist(iso?: string) {
     if (!iso) return '—'
-    return new Date(new Date(iso).getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' ')
+    return new Date(new Date(iso).getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ')
   }
   function duration(seconds: number) {
     if (!seconds) return '—'
@@ -175,7 +175,7 @@
                           <p class="text-xs text-ink-muted">No assessments submitted yet.</p>
                         {:else}
                           <table class="w-full text-xs">
-                            <thead><tr class="text-ink-muted text-left"><th class="py-1">Video</th><th class="py-1">Assessment</th><th class="py-1">Score</th><th class="py-1">%</th><th class="py-1">Result</th><th class="py-1">Time</th><th class="py-1">Date</th></tr></thead>
+                            <thead><tr class="text-ink-muted text-left"><th class="py-1">Video</th><th class="py-1">Assessment</th><th class="py-1">Score</th><th class="py-1">%</th><th class="py-1">Result</th><th class="py-1">Time</th></tr></thead>
                             <tbody>
                               {#each r.assessments as a (a.id)}
                                 <tr class="border-t border-surface-border">
@@ -185,7 +185,6 @@
                                   <td class="py-1">{a.percentage}%</td>
                                   <td class="py-1 font-semibold {a.result === 'PASS' ? 'text-accent' : a.result === 'FAIL' ? 'text-danger' : 'text-ink-muted'}">{a.status || a.result || '—'}</td>
                                   <td class="py-1">{duration(a.timeTakenSeconds)}</td>
-                                  <td class="py-1">{ist(a.completedAt)}</td>
                                 </tr>
                               {/each}
                             </tbody>

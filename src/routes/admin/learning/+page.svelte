@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { listData, createData, deleteData } from '#lib/admin-data'
+  import { listData, createData, deleteData, updateData } from '#lib/admin-data'
 
   interface Video { id: string; title: string; videoUrl: string; moduleNumber?: string; description?: string }
   interface Assessment { id: string; title: string; moduleId?: string }
   let videos = $state<Video[]>([])
   let assessments = $state<Assessment[]>([])
+  let editingId = $state<string | null>(null)
   let title = $state('')
   let videoUrl = $state('')
   let moduleNumber = $state('')
@@ -25,15 +26,29 @@
     finally { loading = false }
   }
 
-  async function add() {
+  function reset() {
+    editingId = null; title = ''; videoUrl = ''; moduleNumber = ''; description = ''
+  }
+
+  function edit(v: Video) {
+    editingId = v.id
+    title = v.title
+    videoUrl = v.videoUrl
+    moduleNumber = v.moduleNumber ?? ''
+    description = v.description ?? ''
+  }
+
+  async function save() {
     if (!title.trim() || !videoUrl.trim()) { showToast('Title and video link are required'); return }
     saving = true
+    const payload = { title: title.trim(), videoUrl: videoUrl.trim(), moduleNumber, description }
     try {
-      await createData('learningModules', { title: title.trim(), videoUrl: videoUrl.trim(), moduleNumber, description })
-      title = ''; videoUrl = ''; moduleNumber = ''; description = ''
-      showToast('Video added')
+      if (editingId) await updateData('learningModules', editingId, payload)
+      else await createData('learningModules', payload)
+      showToast(editingId ? 'Video updated' : 'Video added')
+      reset()
       await load()
-    } catch { showToast('Failed to add') }
+    } catch { showToast('Failed to save') }
     finally { saving = false }
   }
 
@@ -46,14 +61,17 @@
   <h2 class="text-xl font-bold text-ink mb-4">Video & Learning Management</h2>
 
   <div class="bg-white border border-surface-border rounded p-4 mb-5 max-w-lg space-y-3">
-    <h3 class="font-semibold text-ink">Add Video</h3>
+    <h3 class="font-semibold text-ink">{editingId ? 'Edit Video' : 'Add Video'}</h3>
     <input bind:value={title} placeholder="Video title" class="w-full px-3 py-2 border rounded text-sm" />
     <input bind:value={videoUrl} placeholder="Video link (https://…)" class="w-full px-3 py-2 border rounded text-sm" />
     <div class="grid grid-cols-2 gap-3">
       <input bind:value={moduleNumber} placeholder="Module number" class="px-3 py-2 border rounded text-sm" />
       <input bind:value={description} placeholder="Description (optional)" class="px-3 py-2 border rounded text-sm" />
     </div>
-    <button onclick={add} disabled={saving} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving…' : 'Add Video'}</button>
+    <div class="flex gap-2">
+      <button onclick={save} disabled={saving} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving…' : editingId ? 'Save changes' : 'Add Video'}</button>
+      {#if editingId}<button onclick={reset} class="px-4 py-2 text-sm border border-surface-border rounded">Cancel</button>{/if}
+    </div>
   </div>
 
   {#if loading}<p class="text-ink-muted text-sm">Loading…</p>
@@ -75,7 +93,10 @@
                   <a href="/admin/assessment" class="text-danger hover:underline">Not mapped</a>
                 {/if}
               </td>
-              <td class="px-3 py-2"><button onclick={() => remove(v.id)} class="text-xs text-danger hover:underline">Delete</button></td>
+              <td class="px-3 py-2 space-x-3">
+                <button onclick={() => edit(v)} class="text-xs text-accent hover:underline">Edit</button>
+                <button onclick={() => remove(v.id)} class="text-xs text-danger hover:underline">Delete</button>
+              </td>
             </tr>
           {/each}
         </tbody>
