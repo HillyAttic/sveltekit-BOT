@@ -3,7 +3,9 @@
   import { listData, createData, deleteData } from '#lib/admin-data'
 
   interface Video { id: string; title: string; videoUrl: string; moduleNumber?: string; description?: string }
+  interface Assessment { id: string; title: string; moduleId?: string }
   let videos = $state<Video[]>([])
+  let assessments = $state<Assessment[]>([])
   let title = $state('')
   let videoUrl = $state('')
   let moduleNumber = $state('')
@@ -16,8 +18,10 @@
 
   async function load() {
     loading = true
-    try { videos = await listData<Video>('learningModules') }
-    catch { showToast('Failed to load') }
+    try {
+      videos = await listData<Video>('learningModules')
+      assessments = await listData<Assessment>('assessments')
+    } catch { showToast('Failed to load') }
     finally { loading = false }
   }
 
@@ -57,13 +61,20 @@
   {:else}
     <div class="bg-white border border-surface-border rounded overflow-x-auto">
       <table class="w-full text-sm">
-        <thead class="bg-surface"><tr><th class="px-3 py-2 text-left">Module</th><th class="px-3 py-2 text-left">Title</th><th class="px-3 py-2 text-left">Video Link</th><th class="px-3 py-2 text-left">Action</th></tr></thead>
+        <thead class="bg-surface"><tr><th class="px-3 py-2 text-left">Module</th><th class="px-3 py-2 text-left">Title</th><th class="px-3 py-2 text-left">Video Link</th><th class="px-3 py-2 text-left">Assessment</th><th class="px-3 py-2 text-left">Action</th></tr></thead>
         <tbody>
           {#each videos as v (v.id)}
             <tr class="border-t border-surface-border">
               <td class="px-3 py-2">{v.moduleNumber || '—'}</td>
               <td class="px-3 py-2">{v.title}{#if v.description}<div class="text-[11px] text-ink-muted">{v.description}</div>{/if}</td>
               <td class="px-3 py-2"><a href={v.videoUrl} target="_blank" rel="noopener" class="text-accent hover:underline text-xs truncate block max-w-[280px]">{v.videoUrl}</a></td>
+              <td class="px-3 py-2 text-xs">
+                {#if assessments.find((a) => a.moduleId === v.id)}
+                  {assessments.find((a) => a.moduleId === v.id)!.title}
+                {:else}
+                  <a href="/admin/assessment" class="text-danger hover:underline">Not mapped</a>
+                {/if}
+              </td>
               <td class="px-3 py-2"><button onclick={() => remove(v.id)} class="text-xs text-danger hover:underline">Delete</button></td>
             </tr>
           {/each}

@@ -243,11 +243,9 @@ async function startAssessment(
   employee: EmployeeInfo | null
 ): Promise<FlowResult> {
   const modules = await getActiveModules()
-  const moduleIndex = modules.findIndex(
-    (m) => moduleKey(m) === String(pending.moduleNumber ?? pending.videoTitle)
-  )
-  const module = moduleIndex >= 0 ? modules[moduleIndex] : null
-  const assessment = await getAssessmentForModule(module, Math.max(moduleIndex, 0))
+  const module =
+    modules.find((m) => moduleKey(m) === String(pending.moduleNumber ?? pending.videoTitle)) ?? null
+  const assessment = await getAssessmentForModule(module)
   const questionIds = assessment?.questionIds ?? []
 
   if (!assessment || questionIds.length === 0) {

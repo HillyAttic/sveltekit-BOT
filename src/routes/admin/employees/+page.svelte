@@ -12,6 +12,22 @@
     phones: string[]
     createdAt?: string
   }
+  interface VideoRow { id: string; moduleNumber: string; videoTitle: string; deliveredAt: string; completedAt: string; status: string }
+  interface AssessmentRow {
+    id: string
+    assessmentTitle: string
+    videoTitle: string
+    moduleNumber: string
+    marksObtained: number
+    totalMarks: number
+    percentage: number
+    result: string
+    status: string
+    timeTakenSeconds: number
+    completedAt: string
+  }
+  interface Report { employeeId: string; videos: VideoRow[]; assessments: AssessmentRow[] }
+
   let employees = $state<Employee[]>([])
   let loading = $state(true)
   let showForm = $state(false)
@@ -20,8 +36,22 @@
   let saving = $state(false)
   let toast = $state<string | null>(null)
 
+  let openId = $state<string | null>(null)
+  let reports = $state<Record<string, Report>>({})
+  let reportLoading = $state<string | null>(null)
+
   function headers() { return { Authorization: 'Bearer ' + auth.getToken(), 'Content-Type': 'application/json' } }
   function showToast(m: string) { toast = m; setTimeout(() => (toast = null), 2500) }
+
+  function ist(iso?: string) {
+    if (!iso) return '—'
+    return new Date(new Date(iso).getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' ')
+  }
+  function duration(seconds: number) {
+    if (!seconds) return '—'
+    const m = Math.floor(seconds / 60)
+    return m > 0 ? `${m}m ${seconds % 60}s` : `${seconds}s`
+  }
 
   async function load() {
     loading = true
@@ -30,6 +60,21 @@
       employees = await res.json()
     } catch { showToast('Failed to load') }
     finally { loading = false }
+  }
+
+  async function toggleReport(e: Employee) {
+    if (openId === e.id) { openId = null; return }
+    openId = e.id
+    const p = e.phones?.[0]
+    if (!p || reports[e.id]) return
+    reportLoading = e.id
+    try {
+      const res = await fetch('/api/admin/reports/employee?phone=' + encodeURIComponent(p), { headers: headers() })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed')
+      reports = { ...reports, [e.id]: data }
+    } catch { showToast('Failed to load report') }
+    finally { reportLoading = null }
   }
 
   async function save() {
@@ -85,13 +130,75 @@
               <td class="px-3 py-2">{e.city || '—'}</td>
               <td class="px-3 py-2">{e.zone || '—'}</td>
               <td class="px-3 py-2 font-mono text-xs">{e.phones?.[0] || '—'}</td>
-              <td class="px-3 py-2">
+              <td class="px-3 py-2 space-x-3">
+                <button onclick={() => toggleReport(e)} class="text-xs text-accent hover:underline">{openId === e.id ? 'Hide Report' : 'Report'}</button>
                 {#if e.phones?.[0]}
                   <a href={'/admin/flows?phone=' + encodeURIComponent(e.phones[0])} class="text-xs text-accent hover:underline">View Flow</a>
                 {/if}
-                <button onclick={() => remove(e.id)} class="text-xs text-danger hover:underline ml-3">Delete</button>
+                <button onclick={() => remove(e.id)} class="text-xs text-danger hover:underline">Delete</button>
               </td>
             </tr>
+
+            {#if openId === e.id}
+              <tr class="border-t border-surface-border bg-surface/40">
+                <td colspan="7" class="px-4 py-3">
+                  {#if reportLoading === e.id}
+                    <p class="text-xs text-ink-muted">Loading report…</p>
+                  {:else if reports[e.id]}
+                    {@const r = reports[e.id]}
+                    <div class="grid gap-5 lg:grid-cols-2">
+                      <div>
+                        <h4 class="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2">Videos</h4>
+                        {#if r.videos.length === 0}
+                          <p class="text-xs text-ink-muted">No videos delivered yet.</p>
+                        {:else}
+                          <table class="w-full text-xs">
+                            <thead><tr class="text-ink-muted text-left"><th class="py-1">Module</th><th class="py-1">Video</th><th class="py-1">Delivered</th><th class="py-1">Completed</th><th class="py-1">Status</th></tr></thead>
+                            <tbody>
+                              {#each r.videos as v (v.id)}
+                                <tr class="border-t border-surface-border">
+                                  <td class="py-1">{v.moduleNumber || '—'}</td>
+                                  <td class="py-1">{v.videoTitle}</td>
+                                  <td class="py-1">{ist(v.deliveredAt)}</td>
+                                  <td class="py-1">{v.completedAt ? ist(v.completedAt) : '—'}</td>
+                                  <td class="py-1 {v.status === 'completed' ? 'text-accent' : 'text-ink-muted'}">{v.status}</td>
+                                </tr>
+                              {/each}
+                            </tbody>
+                          </table>
+                        {/if}
+                      </div>
+
+                      <div>
+                        <h4 class="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2">Assessments</h4>
+                        {#if r.assessments.length === 0}
+                          <p class="text-xs text-ink-muted">No assessments submitted yet.</p>
+                        {:else}
+                          <table class="w-full text-xs">
+                            <thead><tr class="text-ink-muted text-left"><th class="py-1">Video</th><th class="py-1">Assessment</th><th class="py-1">Score</th><th class="py-1">%</th><th class="py-1">Result</th><th class="py-1">Time</th><th class="py-1">Date</th></tr></thead>
+                            <tbody>
+                              {#each r.assessments as a (a.id)}
+                                <tr class="border-t border-surface-border">
+                                  <td class="py-1">{a.videoTitle || a.moduleNumber || '—'}</td>
+                                  <td class="py-1">{a.assessmentTitle || '—'}</td>
+                                  <td class="py-1">{a.marksObtained}/{a.totalMarks}</td>
+                                  <td class="py-1">{a.percentage}%</td>
+                                  <td class="py-1 font-semibold {a.result === 'PASS' ? 'text-accent' : a.result === 'FAIL' ? 'text-danger' : 'text-ink-muted'}">{a.status || a.result || '—'}</td>
+                                  <td class="py-1">{duration(a.timeTakenSeconds)}</td>
+                                  <td class="py-1">{ist(a.completedAt)}</td>
+                                </tr>
+                              {/each}
+                            </tbody>
+                          </table>
+                        {/if}
+                      </div>
+                    </div>
+                  {:else}
+                    <p class="text-xs text-ink-muted">Report unavailable.</p>
+                  {/if}
+                </td>
+              </tr>
+            {/if}
           {/each}
         </tbody>
       </table>

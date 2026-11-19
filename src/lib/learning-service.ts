@@ -61,6 +61,9 @@ export interface Assessment {
   id: string
   title: string
   questionIds?: string[]
+  /** Learning video this assessment belongs to (learningModules doc id). */
+  moduleId?: string
+  /** Legacy link from before assessments were mapped in the builder. */
   moduleNumber?: string
   passingPercentage?: number
 }
@@ -112,22 +115,22 @@ export async function getNextModule(phone: string): Promise<LearningModule | nul
 }
 
 /**
- * Assessment linked to a module. Uses the module's `moduleNumber` when the
- * admin set one, otherwise falls back to the module's position in the sequence.
+ * The assessment explicitly mapped to this video in the Assessment Builder,
+ * or null when the video has none (the bot then just moves to the next video).
  */
 export async function getAssessmentForModule(
-  module: LearningModule | null,
-  moduleIndex: number
+  module: LearningModule | null
 ): Promise<Assessment | null> {
+  if (!module) return null
   const snap = await getFirestore().collection('assessments').get()
   const assessments = snap.docs.map((d) => ({ ...(d.data() as Omit<Assessment, 'id'>), id: d.id }))
-  if (module?.moduleNumber) {
-    const byNumber = assessments.find(
-      (a) => String(a.moduleNumber ?? '') === String(module.moduleNumber)
-    )
-    if (byNumber) return byNumber
-  }
-  return assessments[moduleIndex] ?? null
+  return (
+    assessments.find((a) => a.moduleId === module.id) ??
+    (module.moduleNumber
+      ? assessments.find((a) => String(a.moduleNumber ?? '') === String(module.moduleNumber))
+      : undefined) ??
+    null
+  )
 }
 
 export async function getQuestionsByIds(ids: string[]): Promise<Question[]> {
