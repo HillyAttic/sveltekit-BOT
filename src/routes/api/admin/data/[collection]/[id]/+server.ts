@@ -5,7 +5,6 @@ import { verifyAdminToken, unauthorizedResponse } from '#lib/auth-middleware'
 
 const ALLOWED = new Set([
   'learningModules',
-  'learningSequences',
   'assessments',
   'questions',
   'scorecards',

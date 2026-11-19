@@ -6,7 +6,6 @@ import { verifyAdminToken, unauthorizedResponse } from '#lib/auth-middleware'
 // Only these Firestore collections can be reached through the generic admin API.
 const ALLOWED = new Set([
   'learningModules',
-  'learningSequences',
   'assessments',
   'questions',
   'scorecards',
