@@ -51,6 +51,16 @@
     return new Date(new Date(iso).getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(11, 19)
   }
 
+  async function remove(sessionId: string) {
+    if (!confirm('Delete this flow and its transcript?')) return
+    const res = await fetch('/api/admin/data/chatSessions/' + encodeURIComponent(sessionId), {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + auth.getToken() },
+    })
+    if (res.ok) flows = flows.filter((f) => f.sessionId !== sessionId)
+    else alert('Failed to delete flow')
+  }
+
   function stepLabel(step: string) {
     if (step === 'done' || step === 'flow_ended') return 'Completed'
     if (step === 'awaiting_finish') return 'Video sent — awaiting FINISH'
@@ -96,6 +106,11 @@
                 ? 'bg-accent/10 text-accent'
                 : 'bg-surface text-ink-muted'}"
             >{f.status}</span>
+            <button
+              onclick={() => remove(f.sessionId)}
+              class="text-xs text-red-600 hover:underline"
+              title="Delete flow"
+            >Delete</button>
           </div>
 
           {#if f.messages?.length}

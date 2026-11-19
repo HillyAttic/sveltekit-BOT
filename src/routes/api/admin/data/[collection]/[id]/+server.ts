@@ -12,6 +12,7 @@ const ALLOWED = new Set([
   'cities',
   'zones',
   'settings',
+  'chatSessions',
 ])
 
 function allowed(collection: string): boolean {

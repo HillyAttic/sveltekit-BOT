@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --env-file-if-exists=.env.local node_modules/vite/bin/vite.js dev",
     "build": "vite build",
+    "postbuild": "node scripts/add-scheduled-handler.mjs",
     "preview": "node --env-file-if-exists=.env --env-file-if-exists=.env.local node_modules/vite/bin/vite.js preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run"

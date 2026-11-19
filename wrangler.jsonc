@@ -11,6 +11,8 @@
     "directory": ".svelte-kit/cloudflare"
   },
   "observability": { "enabled": true },
+  // Every minute: sends due certificate PDFs and scheduled reminders.
+  "triggers": { "crons": ["* * * * *"] },
   "vars": {
     "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": "bot-edventure.firebasestorage.app"
   }

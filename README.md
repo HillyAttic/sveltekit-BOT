@@ -17,6 +17,17 @@ Copy `.env.example` to `.env.local` and fill it in.
 
 Kit 3 no longer copies `.env` files into `process.env`, so `dev` and `preview` run Node with `--env-file-if-exists=.env --env-file-if-exists=.env.local`. On Vercel the platform supplies `process.env` directly.
 
+## Cloudflare deploy
+
+```bash
+npm run build && npx wrangler deploy
+npx wrangler secret put CRON_SECRET   # once — cron endpoint auth
+```
+
+`postbuild` appends a `scheduled` handler to adapter-cloudflare's worker (it only
+exports `fetch` by default), so the every-minute `triggers.crons` in `wrangler.jsonc`
+runs `/api/cron/reminders` — due certificate PDFs and reminders are sent from there.
+
 ## Structure
 
 | Next.js | SvelteKit |
