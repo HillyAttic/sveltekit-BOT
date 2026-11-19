@@ -381,6 +381,27 @@ export class StorageFile {
     return this.path
   }
 
+  /** Upload (create or replace) a file's contents. */
+  async save(
+    data: Uint8Array | ArrayBuffer | string,
+    opts: { contentType?: string } = {}
+  ): Promise<void> {
+    const contentType = opts.contentType || 'application/octet-stream'
+    const body =
+      typeof data === 'string'
+        ? new TextEncoder().encode(data)
+        : data instanceof Uint8Array
+          ? data
+          : new Uint8Array(data)
+    const url = `${STORAGE_BASE}/upload/storage/v1/b/${this.bucket.name}/o?uploadType=media&name=${encodeURIComponent(this.path)}`
+    const res = await authedFetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': contentType },
+      body: body as unknown as BodyInit,
+    })
+    if (!res.ok) throw new Error(`SAVE ${this.path} failed: ${res.status} ${await res.text()}`)
+  }
+
   async delete(opts: { ignoreNotFound?: boolean } = {}): Promise<void> {
     const url = `${STORAGE_BASE}/storage/v1/b/${this.bucket.name}/o/${encodeURIComponent(this.path)}`
     const res = await authedFetch(url, { method: 'DELETE' })

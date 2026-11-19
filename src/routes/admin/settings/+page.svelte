@@ -8,12 +8,14 @@
     whatsappNumber: string
     adminEmail: string
     sessionTimeoutMinutes?: number
+    certificateDelayMinutes?: number
   }
   let settings = $state<Settings>({
     orgName: 'Edventure',
     whatsappNumber: '',
     adminEmail: '',
     sessionTimeoutMinutes: 30,
+    certificateDelayMinutes: 0,
   })
   let loading = $state(true)
   let saving = $state(false)
@@ -38,6 +40,10 @@
         whatsappNumber: settings.whatsappNumber,
         adminEmail: settings.adminEmail,
         sessionTimeoutMinutes: Math.min(1440, Math.max(1, Math.round(settings.sessionTimeoutMinutes || 30))),
+        certificateDelayMinutes: Math.min(
+          1440,
+          Math.max(0, Math.round(settings.certificateDelayMinutes ?? 0))
+        ),
       })
       showToast('Saved')
     } catch { showToast('Save failed') }
@@ -62,6 +68,10 @@
       <label class="block text-xs text-ink-muted">Bot Session Timeout (minutes of inactivity)
         <input type="number" min="1" max="1440" bind:value={settings.sessionTimeoutMinutes} class="w-full px-3 py-2 border rounded text-sm mt-1" />
         <span class="block mt-1 text-[11px] text-ink-muted">After this many idle minutes the conversation session expires; users just send Hi to continue. 1–1440.</span>
+      </label>
+      <label class="block text-xs text-ink-muted">Certificate Send Delay (minutes after passing)
+        <input type="number" min="0" max="1440" bind:value={settings.certificateDelayMinutes} class="w-full px-3 py-2 border rounded text-sm mt-1" />
+        <span class="block mt-1 text-[11px] text-ink-muted">0 sends the certificate PDF on WhatsApp immediately after the final assessment is passed; up to 1440 (24h) is delivered by the cron job.</span>
       </label>
       <button onclick={save} disabled={saving} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
     </div>

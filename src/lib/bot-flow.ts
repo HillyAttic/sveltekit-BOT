@@ -1,3 +1,4 @@
+import { issueCertificateIfComplete } from './certificate-service'
 import { resetUserProfile, saveUserProfile, type UserProfile } from './document-service'
 import {
   DEFAULT_EMPLOYEE_ID_PATTERN,
@@ -447,8 +448,30 @@ async function finishAssessment(phone: string, session: BotSession): Promise<Flo
     )
   }
 
-  lines.push('', 'Congratulations! You are ready for the next learning module.')
   const next = await deliverNextVideo(phone, employee)
+
+  // Last module finished: issue the certificate if every video is done and
+  // every mapped assessment is passed.
+  if (next.session?.currentStep === 'done') {
+    try {
+      const issued = await issueCertificateIfComplete(phone, employee)
+      if (issued) {
+        lines.push(
+          '',
+          'Congratulations! You have completed every learning module.',
+          issued.created
+            ? `Your certificate has been generated — Certificate ID ${issued.certificate.certificateNumber}.`
+            : `Your certificate is already issued — Certificate ID ${issued.certificate.certificateNumber}.`
+        )
+        return { message: lines.join('\n'), session: next.session }
+      }
+    } catch (error) {
+      console.error('[assessment] certificate issue failed:', error)
+    }
+    return { message: `${lines.join('\n')}\n\n${next.message}`, session: next.session }
+  }
+
+  lines.push('', 'Congratulations! You are ready for the next learning module.')
   return { message: `${lines.join('\n')}\n\n${next.message}`, session: next.session }
 }
 

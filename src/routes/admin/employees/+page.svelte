@@ -52,6 +52,12 @@
     const m = Math.floor(seconds / 60)
     return m > 0 ? `${m}m ${seconds % 60}s` : `${seconds}s`
   }
+  /** Time between two timestamps, e.g. Delivered → Completed. */
+  function elapsed(from?: string, to?: string) {
+    if (!from || !to) return '—'
+    const ms = new Date(to).getTime() - new Date(from).getTime()
+    return ms > 0 ? duration(Math.round(ms / 1000)) : '—'
+  }
 
   async function load() {
     loading = true
@@ -146,14 +152,14 @@
                     <p class="text-xs text-ink-muted">Loading report…</p>
                   {:else if reports[e.id]}
                     {@const r = reports[e.id]}
-                    <div class="grid gap-5 lg:grid-cols-2">
-                      <div>
+                    <div class="grid gap-4 lg:grid-cols-2">
+                      <div class="bg-white border border-surface-border rounded p-3">
                         <h4 class="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2">Videos</h4>
                         {#if r.videos.length === 0}
                           <p class="text-xs text-ink-muted">No videos delivered yet.</p>
                         {:else}
                           <table class="w-full text-xs">
-                            <thead><tr class="text-ink-muted text-left"><th class="py-1">Module</th><th class="py-1">Video</th><th class="py-1">Delivered</th><th class="py-1">Completed</th><th class="py-1">Status</th></tr></thead>
+                            <thead><tr class="text-ink-muted text-left"><th class="py-1">Module</th><th class="py-1">Video</th><th class="py-1">Delivered</th><th class="py-1">Completed</th><th class="py-1">Time</th><th class="py-1">Status</th></tr></thead>
                             <tbody>
                               {#each r.videos as v (v.id)}
                                 <tr class="border-t border-surface-border">
@@ -161,6 +167,7 @@
                                   <td class="py-1">{v.videoTitle}</td>
                                   <td class="py-1">{ist(v.deliveredAt)}</td>
                                   <td class="py-1">{v.completedAt ? ist(v.completedAt) : '—'}</td>
+                                  <td class="py-1">{elapsed(v.deliveredAt, v.completedAt)}</td>
                                   <td class="py-1 {v.status === 'completed' ? 'text-accent' : 'text-ink-muted'}">{v.status}</td>
                                 </tr>
                               {/each}
@@ -169,7 +176,7 @@
                         {/if}
                       </div>
 
-                      <div>
+                      <div class="bg-white border border-surface-border rounded p-3">
                         <h4 class="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2">Assessments</h4>
                         {#if r.assessments.length === 0}
                           <p class="text-xs text-ink-muted">No assessments submitted yet.</p>

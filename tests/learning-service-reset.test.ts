@@ -73,6 +73,8 @@ describe('resetEmployeeProgress', () => {
     db.seed('assessmentSubmissions', 'a2', { employeeId: 'EMP-OTHER' })
     db.seed('scorecards', 's1', { employeeId: EMP })
     db.seed('scorecards', 's2', { employeeId: 'EMP-OTHER' })
+    db.seed('certificates', 'c1', { employeeId: EMP })
+    db.seed('certificates', 'c2', { employeeId: 'EMP-OTHER' })
 
     await resetEmployeeProgress(PHONE, EMP)
 
@@ -80,6 +82,7 @@ describe('resetEmployeeProgress', () => {
     expect(db.stores.scheduledReminders.map((d) => d.id)).toEqual(['r2'])
     expect(db.stores.assessmentSubmissions.map((d) => d.id)).toEqual(['a2'])
     expect(db.stores.scorecards.map((d) => d.id)).toEqual(['s2'])
+    expect(db.stores.certificates.map((d) => d.id)).toEqual(['c2'])
   })
 
   it('skips result collections when the employee id is unknown', async () => {

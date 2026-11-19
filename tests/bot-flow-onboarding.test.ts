@@ -50,6 +50,10 @@ vi.mock('#lib/learning-service', async (importOriginal) => {
   }
 })
 
+vi.mock('#lib/certificate-service', () => ({
+  issueCertificateIfComplete: async () => null,
+}))
+
 vi.mock('#lib/reminder-service', () => ({
   getPendingDelivery: async () => pending,
   markDeliveryComplete: async () => {

@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
+import { processDueCertificates } from '#lib/certificate-service'
 import { processDueReminders } from '#lib/reminder-service'
 import { verifyAdminToken } from '#lib/auth-middleware'
 
@@ -19,8 +20,14 @@ export const GET: RequestHandler = async ({ request, url }) => {
   }
 
   try {
-    const result = await processDueReminders()
-    return json(result)
+    const reminders = await processDueReminders()
+    // Certificate PDFs queued by the admin delay setting; failures here must not
+    // stop reminder processing.
+    const certificates = await processDueCertificates().catch((error) => {
+      console.error('Cron certificate delivery failed:', error)
+      return { sent: 0, failed: 0 }
+    })
+    return json({ ...reminders, certificates })
   } catch (error) {
     console.error('Cron reminder processing failed:', error)
     return json({ error: 'Failed' }, { status: 500 })
