@@ -6,12 +6,12 @@ import { normalizePhone } from './phone'
  * to inactivity / explicit close). Documents use auto-generated IDs so
  * multiple sessions per phone are preserved.
  */
-export interface ChatFlowStep {
-  /** Bot step after processing the message (e.g. registration_name). */
-  step: string
+/** One transcript line: who said what, and when. */
+export interface ChatFlowMessage {
   at: string
-  /** Inbound message body, capped to keep session docs small. */
-  message?: string
+  from: 'user' | 'bot'
+  /** Message body, capped to keep session docs small. */
+  text: string
 }
 
 export interface ChatSessionLog {
@@ -24,8 +24,8 @@ export interface ChatSessionLog {
   status: 'active' | 'completed'
   messageCount: number
   lastMessageAt: string
-  /** Ordered flow for one Hi → … → completion run. */
-  steps?: ChatFlowStep[]
+  /** Full transcript for one Hi → … → completion run, like chat.txt. */
+  messages?: ChatFlowMessage[]
 }
 
 /**
@@ -66,17 +66,17 @@ async function findActiveSessionId(phone: string): Promise<string | null> {
 }
 
 /**
- * Record a message in the user's current flow. A flow *only* starts when the
- * user says Hi (startNew); any other message without an active flow is
- * ignored so stray messages never create phantom sessions.
+ * Record one exchange (user message + bot reply) in the user's current flow.
+ * A flow *only* starts when the user says Hi/Restart (startNew); anything else
+ * without an active flow is ignored so stray messages never create phantom
+ * sessions.
  *
  * Returns the chat session document ID, or null when nothing was recorded.
  */
 export async function recordChatActivity(
   phone: string,
   activity: {
-    step: string
-    message?: string
+    messages: Array<{ from: 'user' | 'bot'; text: string }>
     startNew?: boolean
     clientId?: string
     clientName?: string
@@ -87,11 +87,10 @@ export async function recordChatActivity(
     const normalized = normalizePhone(phone)
     const now = new Date()
     const nowIso = now.toISOString()
-    const entry: ChatFlowStep = {
-      step: activity.step,
-      at: nowIso,
-      ...(activity.message ? { message: activity.message.slice(0, 500) } : {}),
-    }
+    const entries: ChatFlowMessage[] = activity.messages
+      .filter((m) => m.text?.trim())
+      .map((m) => ({ at: nowIso, from: m.from, text: m.text.slice(0, 2000) }))
+    const userMessages = entries.filter((m) => m.from === 'user').length
 
     // Hi restarts the flow: close the previous run before opening a new one.
     if (activity.startNew) await closeChatSession(normalized)
@@ -114,8 +113,8 @@ export async function recordChatActivity(
         // Append to the existing flow
         await sessionDoc.ref.update({
           lastMessageAt: nowIso,
-          messageCount: (data.messageCount || 0) + 1,
-          steps: [...(data.steps || []), entry],
+          messageCount: (data.messageCount || 0) + userMessages,
+          messages: [...(data.messages || []), ...entries],
           // Lock in the client if it was previously unknown
           ...(data.clientId ? {} : { clientId: activity.clientId, clientName: activity.clientName }),
         })
@@ -135,9 +134,9 @@ export async function recordChatActivity(
       clientName: activity.clientName,
       startedAt: nowIso,
       status: 'active',
-      messageCount: 1,
+      messageCount: userMessages,
       lastMessageAt: nowIso,
-      steps: [entry],
+      messages: entries,
     }
     const docRef = await db.collection('chatSessions').add(newSession)
     return docRef.id

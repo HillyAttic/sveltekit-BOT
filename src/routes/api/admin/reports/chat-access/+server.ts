@@ -83,6 +83,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
       documentAccessCount: number
       status: string
       messageCount: number
+      messages: Array<{ at: string; from: 'user' | 'bot'; text: string }>
+      /** Legacy shape (step + inbound text) from before the transcript change. */
       steps: Array<{ step: string; at: string; message?: string }>
       startedAt: string
       endedAt?: string
@@ -136,6 +138,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
         documentAccessCount: docs.length,
         status: (data.status as string) || 'active',
         messageCount: (data.messageCount as number) || 0,
+        messages: (data.messages as Array<{ at: string; from: 'user' | 'bot'; text: string }>) || [],
         steps: (data.steps as Array<{ step: string; at: string; message?: string }>) || [],
         startedAt: startedAt.toISOString(),
         endedAt: data.endedAt as string | undefined,

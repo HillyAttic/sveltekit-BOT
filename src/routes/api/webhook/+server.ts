@@ -147,12 +147,15 @@ async function handleMessage(parsed: {
     const isGreeting = command === 'hi' || command === 'hello'
     const isRestart = command === 'restart' || command === 'start over' || command === 'reset'
 
-    // One chatSession doc per Hi/Restart → … → completion run. Either keyword
-    // starts a fresh flow; messages outside a run (after expiry) are not recorded.
+    // Store the full transcript (what the user sent + what the bot replied),
+    // like chat.txt. One chatSession doc per Hi/Restart → … → completion run.
+    const botText = result.interactive?.body ?? result.message
     await recordChatActivity(normalizedPhone, {
       startNew: isGreeting || isRestart,
-      step: result.session?.currentStep ?? 'flow_ended',
-      message: sanitizedText,
+      messages: [
+        { from: 'user', text: sanitizedText },
+        ...(botText ? [{ from: 'bot' as const, text: botText }] : []),
+      ],
       clientId: result.session?.employee?.id ?? user?.id,
       clientName: result.session?.employee?.name ?? user?.name,
     })

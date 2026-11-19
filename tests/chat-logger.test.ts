@@ -75,36 +75,53 @@ describe('chat session boundaries', () => {
   beforeEach(() => db.reset())
 
   it('ignores messages that do not start with Hi', async () => {
-    const id = await recordChatActivity('919999000011', { step: 'flow_ended', message: 'random' })
+    const id = await recordChatActivity('919999000011', {
+      messages: [{ from: 'user', text: 'random' }],
+    })
     expect(id).toBeNull()
     expect(db.sessions).toHaveLength(0)
   })
 
-  it('appends steps to the flow started by Hi', async () => {
+  it('stores the user + bot transcript of the flow started by Hi', async () => {
     const id = await recordChatActivity('919999000011', {
       startNew: true,
-      step: 'registration_employeeId',
-      message: 'hi',
+      messages: [
+        { from: 'user', text: 'hi' },
+        { from: 'bot', text: '1/4 — Employee ID:' },
+      ],
     })
-    await recordChatActivity('919999000011', { step: 'consent', message: 'EMP-1' })
+    await recordChatActivity('919999000011', {
+      messages: [
+        { from: 'user', text: 'EMP-1' },
+        { from: 'bot', text: '2/4 — Employee Name:' },
+      ],
+    })
 
     expect(db.sessions).toHaveLength(1)
     expect(db.sessions[0].id).toBe(id)
-    expect(db.sessions[0].data.steps.map((s: any) => s.step)).toEqual([
-      'registration_employeeId',
-      'consent',
+    expect(db.sessions[0].data.messages.map((m: any) => [m.from, m.text])).toEqual([
+      ['user', 'hi'],
+      ['bot', '1/4 — Employee ID:'],
+      ['user', 'EMP-1'],
+      ['bot', '2/4 — Employee Name:'],
     ])
     expect(db.sessions[0].data.messageCount).toBe(2)
   })
 
   it('closes the old flow and starts a fresh one on the next Hi', async () => {
-    await recordChatActivity('919999000011', { startNew: true, step: 'registration_employeeId', message: 'hi' })
-    await recordChatActivity('919999000011', { startNew: true, step: 'consent', message: 'hi' })
+    await recordChatActivity('919999000011', {
+      startNew: true,
+      messages: [{ from: 'user', text: 'hi' }, { from: 'bot', text: 'prompt' }],
+    })
+    await recordChatActivity('919999000011', {
+      startNew: true,
+      messages: [{ from: 'user', text: 'restart' }, { from: 'bot', text: 'prompt' }],
+    })
 
     expect(db.sessions).toHaveLength(2)
     expect(db.sessions[0].data.status).toBe('completed')
     expect(db.sessions[0].data.endedAt).toBe(db.sessions[0].data.lastMessageAt)
-    expect(db.sessions[1].data.steps).toHaveLength(1)
-    expect(db.sessions[1].data.steps[0].message).toBe('hi')
+    expect(db.sessions[1].data.messages).toHaveLength(2)
+    expect(db.sessions[1].data.messages[0].text).toBe('restart')
   })
 })

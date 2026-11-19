@@ -2,6 +2,8 @@
   import { onMount } from 'svelte'
   import { auth } from '#lib/auth.svelte'
 
+  interface FlowMessage { at: string; from: 'user' | 'bot'; text: string }
+  /** Legacy (pre-transcript) rows. */
   interface FlowStep { step: string; at: string; message?: string }
   interface Flow {
     sessionId: string
@@ -12,6 +14,7 @@
     timeTaken: string
     status: string
     messageCount: number
+    messages: FlowMessage[]
     steps: FlowStep[]
     startedAt: string
     endedAt?: string
@@ -93,7 +96,21 @@
             >{f.status}</span>
           </div>
 
-          {#if f.steps?.length}
+          {#if f.messages?.length}
+            <ol class="px-4 py-3 space-y-3">
+              {#each f.messages as m, i (i)}
+                <li class="text-sm">
+                  <div class="flex items-center gap-3">
+                    <span class="font-mono text-xs text-ink-muted w-20 shrink-0">{istTime(m.at)}</span>
+                    <span class="text-xs font-semibold {m.from === 'bot' ? 'text-ink-muted' : 'text-ink'}">
+                      {m.from === 'bot' ? 'Edventure' : f.clientName}
+                    </span>
+                  </div>
+                  <p class="whitespace-pre-line pl-[5.75rem] {m.from === 'bot' ? 'text-ink-muted' : 'text-ink'}">{m.text}</p>
+                </li>
+              {/each}
+            </ol>
+          {:else if f.steps?.length}
             <ol class="px-4 py-3 space-y-2">
               {#each f.steps as s, i (i)}
                 <li class="flex gap-3 text-sm">
@@ -104,7 +121,7 @@
               {/each}
             </ol>
           {:else}
-            <p class="px-4 py-3 text-xs text-ink-muted">No steps recorded for this flow.</p>
+            <p class="px-4 py-3 text-xs text-ink-muted">No messages recorded for this flow.</p>
           {/if}
         </div>
       {/each}
