@@ -17,7 +17,7 @@ import {
   sendInteractiveList,
 } from '#lib/message-sender'
 import { processMessage } from '#lib/bot-flow'
-import { recordChatActivity, closeChatSession } from '#lib/chat-logger'
+import { recordChatActivity } from '#lib/chat-logger'
 
 // WhatsApp retries webhooks when a 200 is slow — keep a short dedup window.
 const processedMessages = new Map<string, number>()
@@ -146,10 +146,12 @@ async function handleMessage(parsed: {
     const isGreeting =
       sanitizedText.toLowerCase().trim() === 'hi' || sanitizedText.toLowerCase().trim() === 'hello'
 
-    if (isGreeting) {
-      await closeChatSession(normalizedPhone)
-    }
+    // One chatSession doc per Hi → … → completion run. Hi always starts a
+    // fresh one; messages outside a run (after expiry) are not recorded.
     await recordChatActivity(normalizedPhone, {
+      startNew: isGreeting,
+      step: result.session?.currentStep ?? 'flow_ended',
+      message: sanitizedText,
       clientId: result.session?.employee?.id ?? user?.id,
       clientName: result.session?.employee?.name ?? user?.name,
     })

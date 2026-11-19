@@ -82,6 +82,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
       documentAccessed: string
       documentAccessCount: number
       status: string
+      messageCount: number
+      steps: Array<{ step: string; at: string; message?: string }>
       startedAt: string
       endedAt?: string
     }> = []
@@ -133,6 +135,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
         documentAccessed: distinctTitles.join(', ') || '—',
         documentAccessCount: docs.length,
         status: (data.status as string) || 'active',
+        messageCount: (data.messageCount as number) || 0,
+        steps: (data.steps as Array<{ step: string; at: string; message?: string }>) || [],
         startedAt: startedAt.toISOString(),
         endedAt: data.endedAt as string | undefined,
       })

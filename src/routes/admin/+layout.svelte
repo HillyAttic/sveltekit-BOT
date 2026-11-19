@@ -13,6 +13,7 @@
     ['Scorecards & Results', '/admin/scorecards'],
     ['Certificate Management', '/admin/certificates'],
     ['Reminder Management', '/admin/reminders'],
+    ['User Flows', '/admin/flows'],
     ['Reports & Analytics', '/admin/reports'],
     ['City & Zone', '/admin/cityzone'],
     ['Settings', '/admin/settings'],
@@ -42,5 +43,3 @@
     </main>
   </div>
 </AdminGuard>
-EOF
-echo done

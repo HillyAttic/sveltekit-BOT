@@ -6,6 +6,14 @@ import { normalizePhone } from './phone'
  * to inactivity / explicit close). Documents use auto-generated IDs so
  * multiple sessions per phone are preserved.
  */
+export interface ChatFlowStep {
+  /** Bot step after processing the message (e.g. registration_name). */
+  step: string
+  at: string
+  /** Inbound message body, capped to keep session docs small. */
+  message?: string
+}
+
 export interface ChatSessionLog {
   phone: string
   clientId?: string
@@ -16,6 +24,8 @@ export interface ChatSessionLog {
   status: 'active' | 'completed'
   messageCount: number
   lastMessageAt: string
+  /** Ordered flow for one Hi → … → completion run. */
+  steps?: ChatFlowStep[]
 }
 
 /**
@@ -56,21 +66,35 @@ async function findActiveSessionId(phone: string): Promise<string | null> {
 }
 
 /**
- * Record a message from a phone number. Creates a new chat session if the
- * previous one is missing, ended, or older than the inactivity threshold;
- * otherwise appends to the existing one.
+ * Record a message in the user's current flow. A flow *only* starts when the
+ * user says Hi (startNew); any other message without an active flow is
+ * ignored so stray messages never create phantom sessions.
  *
- * Returns the chat session document ID.
+ * Returns the chat session document ID, or null when nothing was recorded.
  */
 export async function recordChatActivity(
   phone: string,
-  fields: { clientId?: string; clientName?: string }
+  activity: {
+    step: string
+    message?: string
+    startNew?: boolean
+    clientId?: string
+    clientName?: string
+  }
 ): Promise<string | null> {
   try {
     const db = getFirestore()
     const normalized = normalizePhone(phone)
     const now = new Date()
     const nowIso = now.toISOString()
+    const entry: ChatFlowStep = {
+      step: activity.step,
+      at: nowIso,
+      ...(activity.message ? { message: activity.message.slice(0, 500) } : {}),
+    }
+
+    // Hi restarts the flow: close the previous run before opening a new one.
+    if (activity.startNew) await closeChatSession(normalized)
 
     // Find the current active session via query (not doc ID)
     const activeSnap = await db
@@ -87,29 +111,33 @@ export async function recordChatActivity(
       const last = new Date(data.lastMessageAt).getTime()
 
       if (now.getTime() - last < INACTIVITY_TIMEOUT_MS) {
-        // Append to existing active session
+        // Append to the existing flow
         await sessionDoc.ref.update({
           lastMessageAt: nowIso,
           messageCount: (data.messageCount || 0) + 1,
+          steps: [...(data.steps || []), entry],
           // Lock in the client if it was previously unknown
-          ...(data.clientId ? {} : { clientId: fields.clientId, clientName: fields.clientName }),
+          ...(data.clientId ? {} : { clientId: activity.clientId, clientName: activity.clientName }),
         })
         return sessionDoc.id
       }
 
-      // Stale active session — close it out before opening a new one
+      // Stale active session — close it out; the next Hi starts a new flow.
       await closeChatSession(normalized)
     }
 
-    // New session with auto-generated ID
+    if (!activity.startNew) return null
+
+    // New flow with auto-generated ID
     const newSession: ChatSessionLog = {
       phone: normalized,
-      clientId: fields.clientId,
-      clientName: fields.clientName,
+      clientId: activity.clientId,
+      clientName: activity.clientName,
       startedAt: nowIso,
       status: 'active',
       messageCount: 1,
       lastMessageAt: nowIso,
+      steps: [entry],
     }
     const docRef = await db.collection('chatSessions').add(newSession)
     return docRef.id
@@ -141,14 +169,15 @@ export async function closeChatSession(phone: string): Promise<void> {
 
     const sessionDoc = activeSnap.docs[0]
     const data = sessionDoc.data() as ChatSessionLog
-    const now = new Date()
     const startedAt = new Date(data.startedAt).getTime()
-    const endedAt = now.toISOString()
+    // End at the last real activity, not when the next Hi happens to arrive —
+    // otherwise a flow left overnight looks days long.
+    const endedAt = data.lastMessageAt || new Date().toISOString()
 
     await sessionDoc.ref.update({
       status: 'completed',
       endedAt,
-      durationMs: Math.max(0, now.getTime() - startedAt),
+      durationMs: Math.max(0, new Date(endedAt).getTime() - startedAt),
       lastMessageAt: endedAt,
     })
   } catch (error) {
