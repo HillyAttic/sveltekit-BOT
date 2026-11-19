@@ -143,13 +143,14 @@ async function handleMessage(parsed: {
       await clearBotSession(normalizedPhone)
     }
 
-    const isGreeting =
-      sanitizedText.toLowerCase().trim() === 'hi' || sanitizedText.toLowerCase().trim() === 'hello'
+    const command = sanitizedText.toLowerCase().trim()
+    const isGreeting = command === 'hi' || command === 'hello'
+    const isRestart = command === 'restart' || command === 'start over' || command === 'reset'
 
-    // One chatSession doc per Hi → … → completion run. Hi always starts a
-    // fresh one; messages outside a run (after expiry) are not recorded.
+    // One chatSession doc per Hi/Restart → … → completion run. Either keyword
+    // starts a fresh flow; messages outside a run (after expiry) are not recorded.
     await recordChatActivity(normalizedPhone, {
-      startNew: isGreeting,
+      startNew: isGreeting || isRestart,
       step: result.session?.currentStep ?? 'flow_ended',
       message: sanitizedText,
       clientId: result.session?.employee?.id ?? user?.id,

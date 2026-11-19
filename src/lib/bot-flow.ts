@@ -213,6 +213,25 @@ async function deliverNextVideo(
   }
 }
 
+function beginRegistration(user?: BotUser | null): FlowResult {
+  const fresh = createSession('registration_employeeId', {
+    registration: {},
+    registrationClientId: user?.id,
+  })
+  return askRegistration(fresh, 'employeeId')
+}
+
+async function beginJourney(phone: string, employee: EmployeeInfo): Promise<FlowResult> {
+  const pending = await getPendingDelivery(phone)
+  if (pending) {
+    return {
+      message: pendingPrompt(pending),
+      session: createSession('awaiting_finish', { employee }),
+    }
+  }
+  return deliverNextVideo(phone, employee)
+}
+
 async function startAssessment(
   phone: string,
   pending: VideoDelivery & { id: string },
@@ -446,28 +465,21 @@ export async function processMessage(
     return startAssessment(phone, pending, user ?? session?.employee ?? null)
   }
 
+  // Restart discards whatever step the user is on (registration, assessment)
+  // and starts their journey again from the beginning.
+  if (input === 'restart' || input === 'start over' || input === 'reset') {
+    return isRegistered(user) ? beginJourney(phone, user!) : beginRegistration(user)
+  }
+
   // Hi / Hello → resume, continue, or start registration
   if (input === 'hi' || input === 'hello') {
     if (step === 'assessment_question' && session?.assessment) {
       return questionResult(phone, session)
     }
     if (isRegistered(user)) {
-      const employee: EmployeeInfo = user!
-      const pending = await getPendingDelivery(phone)
-      if (pending) {
-        return {
-          message: pendingPrompt(pending),
-          session: createSession('awaiting_finish', { employee }),
-        }
-      }
-      return deliverNextVideo(phone, employee)
+      return beginJourney(phone, user!)
     }
-
-    const fresh = createSession('registration_employeeId', {
-      registration: {},
-      registrationClientId: user?.id,
-    })
-    return askRegistration(fresh, 'employeeId')
+    return beginRegistration(user)
   }
 
   // Consent

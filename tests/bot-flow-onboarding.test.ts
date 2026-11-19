@@ -155,6 +155,36 @@ describe('updated WhatsApp flow', () => {
     expect(step.message).toContain('FINISH')
   })
 
+  it('restart abandons an in-progress assessment and starts the journey again', async () => {
+    const session = {
+      currentStep: 'assessment_question',
+      employee: { ...REGISTERED_USER },
+      assessment: {
+        assessmentId: 'a1',
+        title: 'Assessment 1',
+        questionIds: ['q1'],
+        index: 0,
+        answers: {},
+        passingPercentage: 50,
+        videoTitle: 'Intro Video',
+        startedAt: new Date().toISOString(),
+      },
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    }
+
+    const step = await processMessage('91999', 'restart', session as any, undefined, REGISTERED_USER)
+    expect(step.session?.currentStep).toBe('awaiting_finish')
+    expect(step.message).toContain('FINISH')
+    expect(step.message).not.toContain('Question 1 of')
+  })
+
+  it('restart sends an unregistered user back to registration', async () => {
+    const step = await processMessage('91999', 'restart', null, undefined, null)
+    expect(step.session?.currentStep).toBe('registration_employeeId')
+    expect(step.message).toContain('Employee ID')
+  })
+
   it('delivers an assessment after FINISH and sends the scorecard', async () => {
     pending = {
       id: 'd1',
