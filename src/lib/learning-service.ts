@@ -235,6 +235,32 @@ export interface EmployeeDetails {
   managerName: string
 }
 
+/**
+ * Wipe every learning-progress record for one employee: video deliveries,
+ * their reminders, assessment submissions and scorecards. The user profile and
+ * consent are kept — this resets the journey, not the identity.
+ */
+export async function resetEmployeeProgress(phone: string, employeeId?: string): Promise<void> {
+  const db = getFirestore()
+  const normalized = normalizePhone(phone)
+
+  const [deliveries, reminders, submissions, scorecards] = await Promise.all([
+    db.collection('videoDeliveries').where('phone', '==', normalized).get(),
+    db.collection('scheduledReminders').where('phone', '==', normalized).get(),
+    employeeId ? db.collection('assessmentSubmissions').where('employeeId', '==', employeeId).get() : null,
+    employeeId ? db.collection('scorecards').where('employeeId', '==', employeeId).get() : null,
+  ])
+
+  // ponytail: one batch — Firestore caps it at 500 writes; chunk if an
+  // employee can ever exceed that many progress records.
+  const batch = db.batch()
+  for (const d of deliveries.docs) batch.delete(d.ref)
+  for (const d of reminders.docs) batch.delete(d.ref)
+  for (const d of submissions?.docs ?? []) batch.delete(d.ref)
+  for (const d of scorecards?.docs ?? []) batch.delete(d.ref)
+  await batch.commit()
+}
+
 export async function saveAssessmentResult(input: {
   employee: EmployeeDetails
   assessmentId: string

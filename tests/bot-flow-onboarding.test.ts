@@ -3,11 +3,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const savedProfile = vi.fn(async (..._args: any[]) => 'u1')
 const recordedDelivery = vi.fn(async (..._args: any[]) => 'd1')
 const saveResult = vi.fn(async (..._args: any[]) => ({ submissionId: 's1', result: 'PASS' }))
+const resetProgress = vi.fn(async (..._args: any[]) => {})
+const resetProfile = vi.fn(async (..._args: any[]) => {})
 let pending: any = null
 let moduleAvailable = true
 
 vi.mock('#lib/document-service', () => ({
   saveUserProfile: (...args: any[]) => savedProfile(...args),
+  resetUserProfile: (...args: any[]) => resetProfile(...args),
 }))
 
 vi.mock('#lib/learning-service', async (importOriginal) => {
@@ -43,6 +46,7 @@ vi.mock('#lib/learning-service', async (importOriginal) => {
     getNextModule: async () =>
       moduleAvailable ? { id: 'm1', title: 'Intro Video', videoUrl: 'https://v/1', moduleNumber: '1' } : null,
     saveAssessmentResult: (...args: any[]) => saveResult(...args),
+    resetEmployeeProgress: (...args: any[]) => resetProgress(...args),
   }
 })
 
@@ -75,6 +79,8 @@ describe('updated WhatsApp flow', () => {
     savedProfile.mockClear()
     recordedDelivery.mockClear()
     saveResult.mockClear()
+    resetProgress.mockClear()
+    resetProfile.mockClear()
     pending = null
     moduleAvailable = true
   })
@@ -155,7 +161,7 @@ describe('updated WhatsApp flow', () => {
     expect(step.message).toContain('FINISH')
   })
 
-  it('restart abandons an in-progress assessment and starts the journey again', async () => {
+  it('restart wipes progress and registration, then starts registration over', async () => {
     const session = {
       currentStep: 'assessment_question',
       employee: { ...REGISTERED_USER },
@@ -174,9 +180,11 @@ describe('updated WhatsApp flow', () => {
     }
 
     const step = await processMessage('91999', 'restart', session as any, undefined, REGISTERED_USER)
-    expect(step.session?.currentStep).toBe('awaiting_finish')
-    expect(step.message).toContain('FINISH')
-    expect(step.message).not.toContain('Question 1 of')
+    expect(resetProgress).toHaveBeenCalledWith('91999', 'EMP-42')
+    expect(resetProfile).toHaveBeenCalledWith('91999')
+    expect(step.session?.currentStep).toBe('registration_employeeId')
+    expect(step.message).toContain('Employee ID')
+    expect(step.session?.registrationClientId).toBe('u1')
   })
 
   it('restart sends an unregistered user back to registration', async () => {

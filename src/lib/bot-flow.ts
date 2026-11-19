@@ -1,4 +1,4 @@
-import { saveUserProfile, type UserProfile } from './document-service'
+import { resetUserProfile, saveUserProfile, type UserProfile } from './document-service'
 import {
   DEFAULT_EMPLOYEE_ID_PATTERN,
   evaluateQuestions,
@@ -10,6 +10,7 @@ import {
   getRegistrationConfig,
   moduleKey,
   questionOptions,
+  resetEmployeeProgress,
   saveAssessmentResult,
   type EmployeeDetails,
   type LearningModule,
@@ -465,10 +466,13 @@ export async function processMessage(
     return startAssessment(phone, pending, user ?? session?.employee ?? null)
   }
 
-  // Restart discards whatever step the user is on (registration, assessment)
-  // and starts their journey again from the beginning.
+  // Restart wipes learning progress AND registration/consent, then sends the
+  // user through registration again from step 1.
   if (input === 'restart' || input === 'start over' || input === 'reset') {
-    return isRegistered(user) ? beginJourney(phone, user!) : beginRegistration(user)
+    if (!isRegistered(user)) return beginRegistration(user)
+    await resetEmployeeProgress(phone, user!.employeeId)
+    await resetUserProfile(phone)
+    return beginRegistration(user)
   }
 
   // Hi / Hello → resume, continue, or start registration

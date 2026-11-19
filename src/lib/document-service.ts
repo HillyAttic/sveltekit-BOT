@@ -283,6 +283,30 @@ export async function saveUserProfile(
 }
 
 /**
+ * Clear registration + consent so the employee walks through registration
+ * again. The user doc itself is kept (documents stay linked to its ID).
+ */
+export async function resetUserProfile(phone: string): Promise<void> {
+  const db = getFirestore()
+  const normalizedPhone = normalizePhone(phone)
+  const users = await findAllUsersByPhone(normalizedPhone)
+  const cleared = {
+    employeeId: null,
+    name: null,
+    city: null,
+    zone: null,
+    managerName: null,
+    consentStatus: null,
+    consentAt: null,
+    consentVersion: null,
+  }
+  for (const user of users) {
+    await db.collection('users').doc(user.id).update(cleared)
+  }
+  userCache.delete(normalizedPhone)
+}
+
+/**
  * Get all documents for a user by clientId
  */
 export async function getDocuments(phone: string, clientId?: string): Promise<Document[]> {
