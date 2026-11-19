@@ -58,7 +58,7 @@
 </script>
 
 <div class="p-6">
-  <h2 class="text-xl font-bold text-ink mb-4">Video & Learning Management</h2>
+  <h2 class="text-xl font-semibold text-ink mb-4">Video & Learning Management</h2>
 
   <div class="bg-white border border-surface-border rounded p-4 mb-5 max-w-lg space-y-3">
     <h3 class="font-semibold text-ink">{editingId ? 'Edit Video' : 'Add Video'}</h3>
@@ -69,7 +69,7 @@
       <input bind:value={description} placeholder="Description (optional)" class="px-3 py-2 border rounded text-sm" />
     </div>
     <div class="flex gap-2">
-      <button onclick={save} disabled={saving} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving…' : editingId ? 'Save changes' : 'Add Video'}</button>
+      <button onclick={save} disabled={saving} class="px-4 py-2 text-sm font-medium bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving…' : editingId ? 'Save changes' : 'Add Video'}</button>
       {#if editingId}<button onclick={reset} class="px-4 py-2 text-sm border border-surface-border rounded">Cancel</button>{/if}
     </div>
   </div>

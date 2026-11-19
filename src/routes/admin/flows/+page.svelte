@@ -67,7 +67,7 @@
 <div class="p-6">
   <div class="flex items-center justify-between mb-4 gap-4">
     <div>
-      <h2 class="text-xl font-bold text-ink">User Flows</h2>
+      <h2 class="text-xl font-semibold text-ink">User Flows</h2>
       <p class="text-xs text-ink-muted">One entry per Hi → completion run, with exact step times (IST).</p>
     </div>
     <input
@@ -92,7 +92,7 @@
             <span class="text-xs text-ink-muted">{f.timeTaken}</span>
             <span class="text-xs text-ink-muted">{f.messageCount} messages</span>
             <span
-              class="ml-auto text-[10px] uppercase tracking-wider px-2 py-0.5 rounded {f.status === 'active'
+              class="ml-auto text-[11px] px-2 py-0.5 rounded {f.status === 'active'
                 ? 'bg-accent/10 text-accent'
                 : 'bg-surface text-ink-muted'}"
             >{f.status}</span>

@@ -92,13 +92,13 @@
 <div class="p-6">
   <div class="flex items-start justify-between gap-4 mb-4">
     <div>
-      <h2 class="text-xl font-bold text-ink">Certificate Management</h2>
+      <h2 class="text-xl font-semibold text-ink">Certificate Management</h2>
       <p class="text-xs text-ink-muted">
         Generated automatically when the employee completes every video and passes every mapped assessment
         (retakes count). Use Generate to backfill employees who already qualified.
       </p>
     </div>
-    <button onclick={generate} disabled={generating} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded disabled:opacity-50 shrink-0">
+    <button onclick={generate} disabled={generating} class="px-4 py-2 text-sm font-medium whitespace-nowrap bg-accent text-white rounded disabled:opacity-50 shrink-0">
       {generating ? 'Generating…' : 'Generate certificates'}
     </button>
   </div>
@@ -131,7 +131,7 @@
               <td class="px-3 py-2 text-xs">{ist(c.issuedAt)}</td>
               <td class="px-3 py-2 text-xs">
                 <span class={c.deliveryStatus === 'failed' ? 'text-danger' : c.deliveryStatus === 'sent' ? 'text-accent' : 'text-ink-muted'}>{deliveryLabel(c)}</span>
-                <button onclick={() => send(c)} disabled={sendingId === c.id} class="block mt-0.5 text-xs text-accent hover:underline disabled:opacity-50">
+                <button onclick={() => send(c)} disabled={sendingId === c.id} class="block mt-0.5 text-xs text-accent hover:underline whitespace-nowrap disabled:opacity-50">
                   {sendingId === c.id ? 'Sending…' : c.deliveryStatus === 'sent' ? 'Resend' : 'Send now'}
                 </button>
               </td>

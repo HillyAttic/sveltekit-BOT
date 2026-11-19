@@ -1,73 +1,97 @@
 import type { Config } from 'tailwindcss'
 
+/**
+ * Colours resolve to the Cobalt tokens declared in src/app.css, so the whole
+ * admin panel is re-themed from one place. rgb(... / <alpha-value>) keeps the
+ * /10-style opacity modifiers working.
+ */
+const token = (name: string) => `rgb(var(--${name}) / <alpha-value>)`
+
 const config: Config = {
   content: ['./src/**/*.{html,js,svelte,ts}'],
   theme: {
     extend: {
       colors: {
+        white: token('paper-rgb'),
+        black: token('graphite-rgb'),
+        paper: {
+          DEFAULT: token('paper-rgb'),
+          2: token('paper-2-rgb'),
+          3: token('paper-3-rgb'),
+        },
         sidebar: {
-          DEFAULT: '#ffffff',
-          hover: '#f1f5f9',
-          active: '#e2e8f0',
-          border: '#e2e8f0',
+          DEFAULT: token('paper-rgb'),
+          hover: token('paper-2-rgb'),
+          active: token('accent-wash-rgb'),
+          border: token('rule-rgb'),
         },
         accent: {
-          DEFAULT: '#2563eb',
-          hover: '#1d4ed8',
-          light: '#eff6ff',
-          muted: 'rgba(37,99,235,0.12)',
+          DEFAULT: token('accent-rgb'),
+          hover: token('accent-deep-rgb'),
+          light: token('accent-wash-rgb'),
+          muted: token('accent-rgb'),
         },
         teal: {
-          DEFAULT: '#0891b2',
-          hover: '#0e7490',
-          light: '#ecfeff',
-          muted: 'rgba(8,145,178,0.12)',
+          DEFAULT: token('accent-rgb'),
+          hover: token('accent-deep-rgb'),
+          light: token('accent-wash-rgb'),
+          muted: token('accent-rgb'),
         },
         surface: {
-          DEFAULT: '#f8fafc',
-          card: '#ffffff',
-          hover: '#f1f5f9',
-          border: '#e2e8f0',
+          DEFAULT: token('paper-2-rgb'),
+          card: token('paper-rgb'),
+          hover: token('paper-3-rgb'),
+          border: token('rule-rgb'),
         },
         ink: {
-          DEFAULT: '#0f172a',
-          secondary: '#334155',
-          muted: '#64748b',
-          inverse: '#ffffff',
+          DEFAULT: token('ink-rgb'),
+          secondary: token('ink-2-rgb'),
+          muted: token('muted-rgb'),
+          inverse: token('paper-rgb'),
+        },
+        graphite: {
+          DEFAULT: token('graphite-rgb'),
+          2: token('graphite-2-rgb'),
+          ink: token('graphite-ink-rgb'),
+          muted: token('graphite-muted-rgb'),
         },
         success: {
-          DEFAULT: '#16a34a',
-          hover: '#15803d',
-          light: 'rgba(22,163,74,0.1)',
+          DEFAULT: token('success-rgb'),
+          hover: token('success-rgb'),
+          light: token('success-rgb'),
         },
         danger: {
-          DEFAULT: '#dc2626',
-          hover: '#b91c1c',
-          light: 'rgba(220,38,38,0.1)',
+          DEFAULT: token('danger-rgb'),
+          hover: token('danger-rgb'),
+          light: token('danger-rgb'),
         },
         warning: {
-          DEFAULT: '#d97706',
-          hover: '#b45309',
-          light: 'rgba(217,119,6,0.1)',
+          DEFAULT: token('warning-rgb'),
+          hover: token('warning-rgb'),
+          light: token('warning-rgb'),
         },
         gold: {
-          DEFAULT: '#f59e0b',
-          light: '#fef3c7',
+          DEFAULT: token('gold-rgb'),
+          light: token('gold-rgb'),
         },
       },
       fontFamily: {
-        display: ['"Syne"', 'sans-serif'],
-        sans: ['"IBM Plex Sans"', 'sans-serif'],
-        mono: ['"IBM Plex Mono"', 'monospace'],
+        display: ['"Familjen Grotesk"', 'system-ui', 'sans-serif'],
+        sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+      },
+      borderRadius: {
+        DEFAULT: '8px',
+        sm: '6px',
       },
       boxShadow: {
-        card: '0 1px 3px rgba(26,22,38,0.06), 0 1px 2px rgba(26,22,38,0.04)',
-        'card-hover': '0 4px 16px rgba(26,22,38,0.08), 0 2px 6px rgba(26,22,38,0.04)',
-        modal: '0 24px 64px rgba(26,22,38,0.18), 0 8px 24px rgba(26,22,38,0.10)',
-        sidebar: '4px 0 32px rgba(0,0,0,0.18)',
-        bold: '0 4px 0 rgba(26,22,38,0.9)',
-        'glow-accent': '0 0 20px rgba(232,89,12,0.25)',
-        'glow-teal': '0 0 20px rgba(12,133,153,0.25)',
+        card: '0 1px 2px rgb(23 28 38 / 0.06)',
+        'card-hover': '0 2px 6px rgb(23 28 38 / 0.08)',
+        modal: '0 24px 64px rgb(23 28 38 / 0.18), 0 8px 24px rgb(23 28 38 / 0.1)',
+        sidebar: '1px 0 0 rgb(226 230 238 / 1)',
+        bold: '0 4px 0 rgb(23 28 38 / 0.9)',
+        'glow-accent': '0 0 20px rgb(28 89 207 / 0.2)',
+        'glow-teal': '0 0 20px rgb(28 89 207 / 0.2)',
       },
       animation: {
         'fade-in': 'fadeIn 0.25s cubic-bezier(0.16,1,0.3,1)',
@@ -114,8 +138,8 @@ const config: Config = {
           '50%': { opacity: '0.4' },
         },
         glowPulse: {
-          '0%, 100%': { boxShadow: '0 0 12px rgba(232,89,12,0.15)' },
-          '50%': { boxShadow: '0 0 24px rgba(232,89,12,0.35)' },
+          '0%, 100%': { boxShadow: '0 0 12px rgb(28 89 207 / 0.15)' },
+          '50%': { boxShadow: '0 0 24px rgb(28 89 207 / 0.35)' },
         },
       },
     },

@@ -118,8 +118,8 @@
 </script>
 
 <div class="p-6">
-  <h2 class="text-xl font-bold text-ink mb-1">Question Bank</h2>
-  <p class="text-xs text-ink-muted mb-4">Set the correct answer here — assessments are scored automatically from it.</p>
+  <h2 class="text-xl font-semibold text-ink mb-1">Question Bank</h2>
+  <p class="text-xs text-ink-muted mb-4">Set the correct answer here so assessments are scored automatically.</p>
 
   <div class="bg-white border border-surface-border rounded p-4 mb-5 max-w-2xl space-y-3">
     <h3 class="font-semibold text-ink text-sm">{editingId ? 'Edit question' : 'Add question'}</h3>
@@ -140,7 +140,7 @@
 
     {#if type === 'mcq'}
       <div>
-        <p class="text-xs text-ink-muted mb-1">Options — select the radio button beside the correct answer</p>
+        <p class="text-xs text-ink-muted mb-1">Options. Select the radio button beside the correct answer.</p>
         <div class="space-y-2">
           {#each options as _, i (i)}
             <div class="flex items-center gap-2 text-sm">
@@ -151,7 +151,7 @@
           {/each}
         </div>
         <p class="text-xs mt-2 {correctText() ? 'text-ink-muted' : 'text-danger'}">
-          Correct answer: {correctText() || 'none selected yet — click a radio button'}
+          Correct answer: {correctText() || 'none selected yet, click a radio button'}
         </p>
       </div>
     {:else if type === 'truefalse'}
@@ -171,7 +171,7 @@
     {/if}
 
     <div class="flex gap-2">
-      <button onclick={save} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded">{editingId ? 'Save changes' : 'Add'}</button>
+      <button onclick={save} class="px-4 py-2 text-sm font-medium bg-accent text-white rounded">{editingId ? 'Save changes' : 'Add'}</button>
       {#if editingId}<button onclick={reset} class="px-4 py-2 text-sm border border-surface-border rounded">Cancel</button>{/if}
     </div>
   </div>

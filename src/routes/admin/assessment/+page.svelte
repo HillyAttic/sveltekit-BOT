@@ -76,7 +76,7 @@
 </script>
 
 <div class="p-6">
-  <h2 class="text-xl font-bold text-ink mb-4">Assessment Builder</h2>
+  <h2 class="text-xl font-semibold text-ink mb-4">Assessment Builder</h2>
   <div class="bg-white border border-surface-border rounded p-4 mb-4 space-y-3 max-w-lg">
     <h3 class="font-semibold text-ink text-sm">{editingId ? 'Edit assessment' : 'Create assessment'}</h3>
     <input bind:value={title} placeholder="Assessment title" class="w-full px-3 py-2 border rounded text-sm" />
@@ -91,12 +91,12 @@
     </div>
     <label class="block text-xs text-ink-muted">Linked video (asked after FINISH on that video)
       <select bind:value={moduleId} class="w-full px-3 py-2 border rounded text-sm mt-1">
-        <option value="">— Not linked —</option>
+        <option value="">Not linked</option>
         {#each videos as v (v.id)}<option value={v.id}>{videoLabel(v)}</option>{/each}
       </select>
     </label>
     <div class="flex gap-2">
-      <button onclick={save} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded">{editingId ? 'Save changes' : 'Create Assessment'}</button>
+      <button onclick={save} class="px-4 py-2 text-sm font-medium bg-accent text-white rounded">{editingId ? 'Save changes' : 'Create Assessment'}</button>
       {#if editingId}<button onclick={reset} class="px-4 py-2 text-sm border border-surface-border rounded">Cancel</button>{/if}
     </div>
   </div>
@@ -113,7 +113,7 @@
           </div>
           <div class="flex items-center gap-3">
             <select value={a.moduleId ?? ''} onchange={(e) => link(a, e.currentTarget.value)} class="px-2 py-1 border rounded text-xs">
-              <option value="">— Not linked —</option>
+              <option value="">Not linked</option>
               {#each videos as v (v.id)}<option value={v.id}>{videoLabel(v)}</option>{/each}
             </select>
             <button onclick={() => edit(a)} class="text-xs text-accent hover:underline">Edit</button>

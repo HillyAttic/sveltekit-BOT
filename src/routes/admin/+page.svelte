@@ -44,7 +44,7 @@
 </script>
 
 <div class="p-6">
-  <h2 class="text-xl font-bold text-ink mb-1">Dashboard</h2>
+  <h2 class="text-xl font-semibold text-ink mb-1">Dashboard</h2>
   <p class="text-xs text-ink-muted mb-5">Edventure learning overview</p>
 
   {#if loading}

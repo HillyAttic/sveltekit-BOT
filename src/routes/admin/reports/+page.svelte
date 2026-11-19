@@ -28,7 +28,7 @@
 </script>
 
 <div class="p-6">
-  <h2 class="text-xl font-bold text-ink mb-4">Reports & Analytics</h2>
+  <h2 class="text-xl font-semibold text-ink mb-4">Reports & Analytics</h2>
   {#if loading}<p class="text-ink-muted text-sm">Loading…</p>
   {:else}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

@@ -41,10 +41,10 @@
 <div class="p-6">
   <div class="flex items-center justify-between mb-4">
     <div>
-      <h2 class="text-xl font-bold text-ink">Scorecards & Results</h2>
+      <h2 class="text-xl font-semibold text-ink">Scorecards & Results</h2>
       <p class="text-xs text-ink-muted">Pending Evaluation = a question has no answer key yet. Add keys in Question Bank, then re-grade.</p>
     </div>
-    <button onclick={regrade} disabled={regrading} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded disabled:opacity-50">
+    <button onclick={regrade} disabled={regrading} class="px-4 py-2 text-sm font-medium bg-accent text-white rounded disabled:opacity-50">
       {regrading ? 'Re-grading…' : 'Re-grade pending'}
     </button>
   </div>

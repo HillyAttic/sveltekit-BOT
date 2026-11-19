@@ -52,7 +52,7 @@
 </script>
 
 <div class="p-6">
-  <h2 class="text-xl font-bold text-ink mb-4">Settings</h2>
+  <h2 class="text-xl font-semibold text-ink mb-4">Settings</h2>
   {#if loading}<p class="text-ink-muted text-sm">Loading…</p>
   {:else}
     <div class="bg-white border border-surface-border rounded p-4 space-y-3 max-w-md">
@@ -73,7 +73,7 @@
         <input type="number" min="0" max="1440" bind:value={settings.certificateDelayMinutes} class="w-full px-3 py-2 border rounded text-sm mt-1" />
         <span class="block mt-1 text-[11px] text-ink-muted">0 sends the certificate PDF on WhatsApp immediately after the final assessment is passed; up to 1440 (24h) is delivered by the cron job.</span>
       </label>
-      <button onclick={save} disabled={saving} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
+      <button onclick={save} disabled={saving} class="px-4 py-2 text-sm font-medium bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
     </div>
   {/if}
   {#if toast}<div class="fixed top-4 right-4 px-4 py-2 rounded text-sm text-white bg-ink">{toast}</div>{/if}

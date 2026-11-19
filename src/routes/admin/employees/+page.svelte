@@ -107,15 +107,15 @@
 
 <div class="p-6">
   <div class="flex items-center justify-between mb-4">
-    <h2 class="text-xl font-bold text-ink">Employee Management</h2>
-    <button onclick={() => (showForm = !showForm)} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded hover:bg-accent-hover">{showForm ? 'Cancel' : '+ Add Employee'}</button>
+    <h2 class="text-xl font-semibold text-ink">Employee Management</h2>
+    <button onclick={() => (showForm = !showForm)} class="px-4 py-2 text-sm font-medium whitespace-nowrap bg-accent text-white rounded">{showForm ? 'Cancel' : '+ Add Employee'}</button>
   </div>
 
   {#if showForm}
     <div class="bg-white border border-surface-border rounded p-4 mb-4 space-y-3 max-w-md">
       <input bind:value={name} placeholder="Full name" class="w-full px-3 py-2 border rounded text-sm" />
       <input bind:value={phone} placeholder="Phone (91...)" class="w-full px-3 py-2 border rounded text-sm font-mono" />
-      <button onclick={save} disabled={saving} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+      <button onclick={save} disabled={saving} class="px-4 py-2 text-sm font-medium whitespace-nowrap bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
     </div>
   {/if}
 
@@ -137,7 +137,7 @@
               <td class="px-3 py-2">{e.zone || '—'}</td>
               <td class="px-3 py-2 font-mono text-xs">{e.phones?.[0] || '—'}</td>
               <td class="px-3 py-2 space-x-3">
-                <button onclick={() => toggleReport(e)} class="text-xs text-accent hover:underline">{openId === e.id ? 'Hide Report' : 'Report'}</button>
+                <button onclick={() => toggleReport(e)} class="text-xs text-accent hover:underline whitespace-nowrap">{openId === e.id ? 'Hide Report' : 'Report'}</button>
                 {#if e.phones?.[0]}
                   <a href={'/admin/flows?phone=' + encodeURIComponent(e.phones[0])} class="text-xs text-accent hover:underline">View Flow</a>
                 {/if}
@@ -154,7 +154,7 @@
                     {@const r = reports[e.id]}
                     <div class="grid gap-4 lg:grid-cols-2">
                       <div class="bg-white border border-surface-border rounded p-3">
-                        <h4 class="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2">Videos</h4>
+                        <h4 class="eyebrow mb-2">Videos</h4>
                         {#if r.videos.length === 0}
                           <p class="text-xs text-ink-muted">No videos delivered yet.</p>
                         {:else}
@@ -177,7 +177,7 @@
                       </div>
 
                       <div class="bg-white border border-surface-border rounded p-3">
-                        <h4 class="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2">Assessments</h4>
+                        <h4 class="eyebrow mb-2">Assessments</h4>
                         {#if r.assessments.length === 0}
                           <p class="text-xs text-ink-muted">No assessments submitted yet.</p>
                         {:else}

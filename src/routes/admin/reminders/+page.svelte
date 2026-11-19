@@ -114,10 +114,10 @@
 <div class="p-6">
   <div class="flex items-center justify-between mb-4">
     <div>
-      <h2 class="text-xl font-bold text-ink">Reminder Management</h2>
+      <h2 class="text-xl font-semibold text-ink">Reminder Management</h2>
       <p class="text-xs text-ink-muted">Configure reminder timing, messages and track every reminder.</p>
     </div>
-    <button onclick={processNow} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded hover:bg-accent-hover">Process Due Now</button>
+    <button onclick={processNow} class="px-4 py-2 text-sm font-medium bg-accent text-white rounded hover:bg-accent-hover">Process Due Now</button>
   </div>
 
   <div class="flex gap-1 mb-5 border-b border-surface-border">
@@ -146,7 +146,7 @@
         <input bind:value={moduleNumber} placeholder="Module number" class="px-3 py-2 border rounded text-sm" />
         <input bind:value={videoUrl} placeholder="Video link (optional)" class="col-span-2 px-3 py-2 border rounded text-sm" />
       </div>
-      <button onclick={addDelivery} disabled={saving} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving…' : 'Record Delivery & Schedule Reminders'}</button>
+      <button onclick={addDelivery} disabled={saving} class="px-4 py-2 text-sm font-medium bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving…' : 'Record Delivery & Schedule Reminders'}</button>
     </div>
 
     <div class="bg-white border border-surface-border rounded overflow-x-auto">
@@ -217,7 +217,7 @@
 
       <div class="flex gap-2">
         <button onclick={addReminder} class="px-4 py-2 text-sm border border-accent text-accent rounded hover:bg-accent/10">+ Add Reminder</button>
-        <button onclick={save} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded hover:bg-accent-hover">Save Configuration</button>
+        <button onclick={save} class="px-4 py-2 text-sm font-medium bg-accent text-white rounded hover:bg-accent-hover">Save Configuration</button>
       </div>
     </div>
   {:else}

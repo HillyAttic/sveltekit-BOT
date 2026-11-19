@@ -47,7 +47,7 @@
 </script>
 
 <div class="p-6">
-  <h2 class="text-xl font-bold text-ink mb-4">City & Zone Management</h2>
+  <h2 class="text-xl font-semibold text-ink mb-4">City & Zone Management</h2>
   {#if loading}<p class="text-ink-muted text-sm">Loading…</p>
   {:else}
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -59,7 +59,7 @@
             <option value="">No zone</option>
             {#each zones as z (z.id)}<option value={z.name}>{z.name}</option>{/each}
           </select>
-          <button onclick={addCity} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded">Add</button>
+          <button onclick={addCity} class="px-4 py-2 text-sm font-medium bg-accent text-white rounded">Add</button>
         </div>
         <ul class="space-y-1">
           {#each cities as c (c.id)}
@@ -78,7 +78,7 @@
         <h3 class="font-semibold text-ink mb-2">Zones</h3>
         <div class="flex gap-2 mb-3">
           <input bind:value={zoneInput} placeholder="Zone name" class="px-3 py-2 border rounded text-sm flex-1" onkeydown={(e) => e.key === 'Enter' && addZone()} />
-          <button onclick={addZone} class="px-4 py-2 text-sm font-bold bg-accent text-white rounded">Add</button>
+          <button onclick={addZone} class="px-4 py-2 text-sm font-medium bg-accent text-white rounded">Add</button>
         </div>
         <ul class="space-y-1">
           {#each zones as z (z.id)}
