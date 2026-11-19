@@ -7,7 +7,6 @@
     ['Dashboard', '/admin'],
     ['Employee Management', '/admin/employees'],
     ['Video & Learning', '/admin/learning'],
-    ['Learning Sequence', '/admin/sequence'],
     ['Assessment Builder', '/admin/assessment'],
     ['Question Bank', '/admin/questions'],
     ['Scorecards & Results', '/admin/scorecards'],
