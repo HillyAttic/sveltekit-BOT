@@ -1,6 +1,7 @@
 import { getFirestore } from './firebase-admin'
 import { sendMessage } from './message-sender'
 import { normalizePhone } from './phone'
+import { recordChatActivity } from './chat-logger'
 
 export interface ReminderStep {
   id: string
@@ -232,6 +233,13 @@ export async function processDueReminders(): Promise<{ processed: number; sent: 
       // approved template message. Add a template lookup here when that matters.
       await sendMessage(sr.phone, message)
       await d.ref.update({ status: 'sent', sentAt: new Date().toISOString() })
+      // Show the reminder in the user's flow (Admin → User Flows). No-op when
+      // the session has already gone inactive.
+      await recordChatActivity(sr.phone, {
+        messages: [{ from: 'bot', text: message }],
+        clientId: delivery?.clientId,
+        clientName: sr.employeeName,
+      })
       // log history
       await db.collection('reminderHistory').add({
         employeeName: sr.employeeName || '',
