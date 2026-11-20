@@ -21,6 +21,9 @@ interface ServiceAccount {
 
 let account: ServiceAccount | null = null
 let cachedToken: { value: string; expiresAt: number } | null = null
+// Single-flight: on a cold isolate several parallel Firestore calls each used to
+// mint their own OAuth token (sign + token endpoint). Share one mint instead.
+let tokenRequest: Promise<string> | null = null
 
 function getAccount(): ServiceAccount {
   if (account) return account
@@ -52,9 +55,18 @@ async function importKey(): Promise<CryptoKey> {
   )
 }
 
-async function getAccessToken(): Promise<string> {
-  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return cachedToken.value
+function getAccessToken(): Promise<string> {
+  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
+    return Promise.resolve(cachedToken.value)
+  }
 
+  tokenRequest ??= mintAccessToken().finally(() => {
+    tokenRequest = null
+  })
+  return tokenRequest
+}
+
+async function mintAccessToken(): Promise<string> {
   const now = Math.floor(Date.now() / 1000)
   const header = base64Url(new TextEncoder().encode(JSON.stringify({ alg: 'RS256', typ: 'JWT' })))
   const claims = base64Url(

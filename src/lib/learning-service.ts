@@ -1,28 +1,62 @@
 import { getFirestore } from './firebase-admin'
 import { normalizePhone } from './phone'
 
+/* ------------------------------- read cache ------------------------------ */
+
+/**
+ * Tiny TTL memo for read-mostly config. One Firestore read per TTL per isolate
+ * instead of one per bot message; concurrent misses share a single request.
+ */
+const memo = new Map<string, { value: unknown; at: number }>()
+const inflight = new Map<string, Promise<unknown>>()
+
+function cached<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
+  const hit = memo.get(key)
+  if (hit && Date.now() - hit.at < ttlMs) return Promise.resolve(hit.value as T)
+
+  const running = inflight.get(key)
+  if (running) return running as Promise<T>
+
+  const request = load()
+    .then((value) => {
+      memo.set(key, { value, at: Date.now() })
+      return value
+    })
+    .finally(() => inflight.delete(key))
+  inflight.set(key, request)
+  return request
+}
+
+/** Drop memoized learning data (used when admin edits learning collections). */
+export function clearLearningCache(): void {
+  memo.clear()
+  inflight.clear()
+}
+
 /* ------------------------------ registration ----------------------------- */
 
 export const DEFAULT_EMPLOYEE_ID_PATTERN = '^[A-Za-z0-9._-]{3,30}$'
 
-export async function getRegistrationConfig(): Promise<{
+export function getRegistrationConfig(): Promise<{
   employeeIdPattern: string
   consentVersion: string
 }> {
-  try {
-    const doc = await getFirestore().collection('config').doc('registration').get()
-    const data = doc.exists ? doc.data() : {}
-    return {
-      employeeIdPattern:
-        typeof data.employeeIdPattern === 'string' && data.employeeIdPattern
-          ? data.employeeIdPattern
-          : DEFAULT_EMPLOYEE_ID_PATTERN,
-      consentVersion: typeof data.consentVersion === 'string' ? data.consentVersion : 'v1',
+  return cached('registration-config', 60_000, async () => {
+    try {
+      const doc = await getFirestore().collection('config').doc('registration').get()
+      const data = doc.exists ? doc.data() : {}
+      return {
+        employeeIdPattern:
+          typeof data.employeeIdPattern === 'string' && data.employeeIdPattern
+            ? data.employeeIdPattern
+            : DEFAULT_EMPLOYEE_ID_PATTERN,
+        consentVersion: typeof data.consentVersion === 'string' ? data.consentVersion : 'v1',
+      }
+    } catch (error) {
+      console.error('[learning] registration config read failed, using defaults:', error)
+      return { employeeIdPattern: DEFAULT_EMPLOYEE_ID_PATTERN, consentVersion: 'v1' }
     }
-  } catch (error) {
-    console.error('[learning] registration config read failed, using defaults:', error)
-    return { employeeIdPattern: DEFAULT_EMPLOYEE_ID_PATTERN, consentVersion: 'v1' }
-  }
+  })
 }
 
 /* --------------------------------- cities -------------------------------- */
@@ -34,14 +68,16 @@ export interface CityZone {
 }
 
 /** Cities configured in the admin City & Zone page, with their zone mapping. */
-export async function getCities(): Promise<CityZone[]> {
-  const snap = await getFirestore().collection('cities').get()
-  return snap.docs
-    .map((d) => {
-      const data = d.data()
-      return { id: d.id, name: String(data.name ?? '').trim(), zone: String(data.zone ?? '').trim() }
-    })
-    .filter((c) => c.name)
+export function getCities(): Promise<CityZone[]> {
+  return cached('cities', 60_000, async () => {
+    const snap = await getFirestore().collection('cities').get()
+    return snap.docs
+      .map((d) => {
+        const data = d.data()
+        return { id: d.id, name: String(data.name ?? '').trim(), zone: String(data.zone ?? '').trim() }
+      })
+      .filter((c) => c.name)
+  })
 }
 
 /* -------------------------- modules and assessments ---------------------- */
@@ -82,18 +118,21 @@ export function moduleKey(module: Pick<LearningModule, 'moduleNumber' | 'title'>
   return String(module.moduleNumber ?? module.title)
 }
 
-export async function getActiveModules(): Promise<LearningModule[]> {
-  const snap = await getFirestore().collection('learningModules').get()
-  return snap.docs
-    .map((d) => ({ ...(d.data() as Omit<LearningModule, 'id'>), id: d.id }))
-    .filter((m) => m.title && m.active !== false && m.status !== 'inactive')
-    .sort((a, b) => {
-      const av = parseInt(String(a.moduleNumber ?? ''), 10)
-      const bv = parseInt(String(b.moduleNumber ?? ''), 10)
-      const an = Number.isFinite(av) ? av : (a.order ?? Number.MAX_SAFE_INTEGER)
-      const bn = Number.isFinite(bv) ? bv : (b.order ?? Number.MAX_SAFE_INTEGER)
-      return an - bn
-    })
+export function getActiveModules(): Promise<LearningModule[]> {
+  // 30s staleness at most: a newly published module reaches the bot almost at once.
+  return cached('active-modules', 30_000, async () => {
+    const snap = await getFirestore().collection('learningModules').get()
+    return snap.docs
+      .map((d) => ({ ...(d.data() as Omit<LearningModule, 'id'>), id: d.id }))
+      .filter((m) => m.title && m.active !== false && m.status !== 'inactive')
+      .sort((a, b) => {
+        const av = parseInt(String(a.moduleNumber ?? ''), 10)
+        const bv = parseInt(String(b.moduleNumber ?? ''), 10)
+        const an = Number.isFinite(av) ? av : (a.order ?? Number.MAX_SAFE_INTEGER)
+        const bn = Number.isFinite(bv) ? bv : (b.order ?? Number.MAX_SAFE_INTEGER)
+        return an - bn
+      })
+  })
 }
 
 async function getCompletedModuleKeys(phone: string): Promise<Set<string>> {
@@ -133,13 +172,17 @@ export async function getAssessmentForModule(
   )
 }
 
-export async function getQuestionsByIds(ids: string[]): Promise<Question[]> {
-  if (ids.length === 0) return []
-  const snap = await getFirestore().collection('questions').get()
-  const byId = new Map(
-    snap.docs.map((d) => [d.id, { ...(d.data() as Omit<Question, 'id'>), id: d.id }])
-  )
-  return ids.map((id) => byId.get(id)).filter((q): q is Question => !!q)
+export function getQuestionsByIds(ids: string[]): Promise<Question[]> {
+  if (ids.length === 0) return Promise.resolve([])
+  // Parallel doc reads (one round trip, no full-collection scan) + short memo:
+  // answering a question used to read the whole questions collection twice.
+  return cached(`questions:${ids.join('|')}`, 30_000, async () => {
+    const db = getFirestore()
+    const docs = await Promise.all(ids.map((id) => db.collection('questions').doc(id).get()))
+    return docs
+      .filter((d) => d.exists)
+      .map((d) => ({ ...(d.data() as Omit<Question, 'id'>), id: d.id }))
+  })
 }
 
 /* ------------------------------- evaluation ------------------------------ */

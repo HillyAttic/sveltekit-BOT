@@ -110,12 +110,15 @@ async function handleMessage(parsed: {
     const normalizedPhone = normalizePhone(from)
     const sanitizedText = sanitizeMessageBody(text)
 
-    const users = await findAllUsersByPhone(normalizedPhone)
+    // Independent reads: fetch the user and the bot session together.
+    const [users, session] = await Promise.all([
+      findAllUsersByPhone(normalizedPhone),
+      getBotSession(normalizedPhone),
+    ])
     console.log(`Users found for ${normalizedPhone}: ${users.length}`)
 
     // Unknown numbers are not rejected: saying Hi starts registration, which
     // creates the employee record once consent is given.
-    const session = await getBotSession(normalizedPhone)
     const user = users[0]
       ? {
           id: users[0].id,
@@ -136,29 +139,30 @@ async function handleMessage(parsed: {
       user
     )
 
-    if (result.session) {
-      await saveBotSession(normalizedPhone, result.session)
-    } else {
-      // Registration declined or no active flow — start clean next time.
-      await clearBotSession(normalizedPhone)
-    }
-
     const command = sanitizedText.toLowerCase().trim()
     const isGreeting = command === 'hi' || command === 'hello'
     const isRestart = command === 'restart' || command === 'start over' || command === 'reset'
-
-    // Store the full transcript (what the user sent + what the bot replied),
-    // like chat.txt. One chatSession doc per Hi/Restart → … → completion run.
     const botText = result.interactive?.body ?? result.message
-    await recordChatActivity(normalizedPhone, {
-      startNew: isGreeting || isRestart,
-      messages: [
-        { from: 'user', text: sanitizedText },
-        ...(botText ? [{ from: 'bot' as const, text: botText }] : []),
-      ],
-      clientId: result.session?.employee?.id ?? user?.id,
-      clientName: result.session?.employee?.name ?? user?.name,
-    })
+
+    // Persist session + transcript while the WhatsApp reply is in flight — the
+    // user must not wait for logging.
+    const persist = Promise.all([
+      result.session
+        ? saveBotSession(normalizedPhone, result.session)
+        : // Registration declined or no active flow — start clean next time.
+          clearBotSession(normalizedPhone),
+      // Store the full transcript (what the user sent + what the bot replied),
+      // like chat.txt. One chatSession doc per Hi/Restart → … → completion run.
+      recordChatActivity(normalizedPhone, {
+        startNew: isGreeting || isRestart,
+        messages: [
+          { from: 'user', text: sanitizedText },
+          ...(botText ? [{ from: 'bot' as const, text: botText }] : []),
+        ],
+        clientId: result.session?.employee?.id ?? user?.id,
+        clientName: result.session?.employee?.name ?? user?.name,
+      }),
+    ]).catch((error) => console.error('Failed to persist bot state:', error))
 
     if (result.interactive) {
       if (result.interactive.type === 'button') {
@@ -174,6 +178,8 @@ async function handleMessage(parsed: {
     } else if (result.message) {
       await sendMessage(from, result.message)
     }
+
+    await persist
   } catch (error) {
     console.error('Error processing message:', error)
     try {

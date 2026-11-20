@@ -27,12 +27,17 @@ vi.mock('#lib/firebase-admin', () => ({
 
 vi.mock('#lib/message-sender', () => ({ sendMessage: vi.fn(async () => {}) }))
 
-import { getReminderConfig, scheduleReminders } from '#lib/reminder-service'
+import {
+  getReminderConfig,
+  invalidateReminderConfig,
+  scheduleReminders,
+} from '#lib/reminder-service'
 
 describe('reminder-service', () => {
   beforeEach(() => {
     state.config = null
     state.added = []
+    invalidateReminderConfig()
   })
 
   it('creates the default reminder configuration when none exists', async () => {

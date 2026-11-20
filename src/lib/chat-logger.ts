@@ -91,19 +91,21 @@ export async function recordChatActivity(
       .map((m) => ({ at: nowIso, from: m.from, text: m.text.slice(0, 2000) }))
     const userMessages = entries.filter((m) => m.from === 'user').length
 
-    // Hi restarts the flow: close the previous run before opening a new one.
-    if (activity.startNew) await closeChatSession(normalized)
+    // Hi/restart closes the previous run and opens a fresh one — no need to
+    // query for an active session afterwards, closeChatSession just ended it.
+    if (activity.startNew) {
+      await closeChatSession(normalized)
+    } else {
+      const activeSnap = await db
+        .collection('chatSessions')
+        .where('phone', '==', normalized)
+        .where('status', '==', 'active')
+        .orderBy('lastMessageAt', 'desc')
+        .limit(1)
+        .get()
 
-    // Find the current active session via query (not doc ID)
-    const activeSnap = await db
-      .collection('chatSessions')
-      .where('phone', '==', normalized)
-      .where('status', '==', 'active')
-      .orderBy('lastMessageAt', 'desc')
-      .limit(1)
-      .get()
+      if (activeSnap.empty) return null
 
-    if (!activeSnap.empty) {
       const sessionDoc = activeSnap.docs[0]
       const data = sessionDoc.data() as ChatSessionLog
       const last = new Date(data.lastMessageAt).getTime()
@@ -122,9 +124,8 @@ export async function recordChatActivity(
 
       // Stale active session — close it out; the next Hi starts a new flow.
       await closeChatSession(normalized)
+      return null
     }
-
-    if (!activity.startNew) return null
 
     // New flow with auto-generated ID
     const newSession: ChatSessionLog = {

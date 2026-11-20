@@ -188,11 +188,11 @@ function pendingPrompt(pending: VideoDelivery): string {
   ].join('\n')
 }
 
-async function deliverNextVideo(
+async function deliverModule(
   phone: string,
-  employee: EmployeeInfo
+  employee: EmployeeInfo,
+  module: LearningModule | null
 ): Promise<FlowResult> {
-  const module = await getNextModule(phone)
   if (!module) {
     // ponytail: certificate PDFs are not generated yet; only announce completion.
     return {
@@ -219,6 +219,13 @@ async function deliverNextVideo(
   }
 }
 
+async function deliverNextVideo(
+  phone: string,
+  employee: EmployeeInfo
+): Promise<FlowResult> {
+  return deliverModule(phone, employee, await getNextModule(phone))
+}
+
 function beginRegistration(user?: BotUser | null): FlowResult {
   const fresh = createSession('registration_employeeId', {
     registration: {},
@@ -228,14 +235,18 @@ function beginRegistration(user?: BotUser | null): FlowResult {
 }
 
 async function beginJourney(phone: string, employee: EmployeeInfo): Promise<FlowResult> {
-  const pending = await getPendingDelivery(phone)
+  // Independent reads — fetch together so the reply waits on one round trip.
+  const [pending, nextModule] = await Promise.all([
+    getPendingDelivery(phone),
+    getNextModule(phone),
+  ])
   if (pending) {
     return {
       message: pendingPrompt(pending),
       session: createSession('awaiting_finish', { employee }),
     }
   }
-  return deliverNextVideo(phone, employee)
+  return deliverModule(phone, employee, nextModule)
 }
 
 async function startAssessment(

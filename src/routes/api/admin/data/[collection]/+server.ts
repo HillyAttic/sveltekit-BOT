@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { getFirestore } from '#lib/firebase-admin'
+import { clearLearningCache } from '#lib/learning-service'
 import { verifyAdminToken, unauthorizedResponse } from '#lib/auth-middleware'
 
 // Only these Firestore collections can be reached through the generic admin API.
@@ -45,9 +46,12 @@ export const POST: RequestHandler = async ({ request, params }) => {
     const db = getFirestore()
     if (id) {
       await db.collection(params.collection).doc(String(id)).set(data)
+      clearLearningCache()
       return json({ id, ...data }, { status: 201 })
     }
     const ref = await db.collection(params.collection).add(data)
+    // Bot-side config caches are TTL'd; drop them so edits show up at once.
+    clearLearningCache()
     return json({ id: ref.id, ...data }, { status: 201 })
   } catch (error) {
     console.error('Generic data POST failed:', error)

@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { getFirestore } from '#lib/firebase-admin'
+import { clearLearningCache } from '#lib/learning-service'
 import { verifyAdminToken, unauthorizedResponse } from '#lib/auth-middleware'
 
 const ALLOWED = new Set([
@@ -28,6 +29,7 @@ export const PUT: RequestHandler = async ({ request, params }) => {
     const data = await request.json()
     const db = getFirestore()
     await db.collection(params.collection).doc(params.id).update(data ?? {})
+    clearLearningCache()
     return json({ id: params.id, ...data })
   } catch (error) {
     console.error('Generic data PUT failed:', error)
@@ -43,6 +45,7 @@ export const DELETE: RequestHandler = async ({ request, params }) => {
   try {
     const db = getFirestore()
     await db.collection(params.collection).doc(params.id).delete()
+    clearLearningCache()
     return json({ success: true })
   } catch (error) {
     console.error('Generic data DELETE failed:', error)

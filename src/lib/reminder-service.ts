@@ -68,23 +68,37 @@ const DEFAULT_REMINDERS: ReminderStep[] = [
   { id: 'r5', triggerMinutes: 1440, message: 'Final reminder {name}: your Edventure learning activity {video} is still incomplete. Complete it to continue your journey.', enabled: true, order: 5 },
 ]
 
+// Reminder config is read on every video delivery; cache it briefly so the
+// reply doesn't wait on a config read.
+const CONFIG_TTL_MS = 60_000
+let configCache: { config: ReminderConfig; at: number } | null = null
+
+export function invalidateReminderConfig(): void {
+  configCache = null
+}
+
 export async function getReminderConfig(): Promise<ReminderConfig> {
+  if (configCache && Date.now() - configCache.at < CONFIG_TTL_MS) return configCache.config
+
   const db = getFirestore()
   const doc = await db.collection('config').doc('reminders').get()
+  let config: ReminderConfig
   if (!doc.exists) {
-    const cfg: ReminderConfig = { enabled: true, maxReminders: 5, reminders: DEFAULT_REMINDERS, updatedAt: new Date().toISOString() }
-    await db.collection('config').doc('reminders').set(cfg)
-    return cfg
+    config = { enabled: true, maxReminders: 5, reminders: DEFAULT_REMINDERS, updatedAt: new Date().toISOString() }
+    await db.collection('config').doc('reminders').set(config)
+  } else {
+    config = doc.data() as ReminderConfig
+    if (!config.reminders || config.reminders.length === 0) config.reminders = DEFAULT_REMINDERS
   }
-  const data = doc.data() as ReminderConfig
-  if (!data.reminders || data.reminders.length === 0) data.reminders = DEFAULT_REMINDERS
-  return data
+  configCache = { config, at: Date.now() }
+  return config
 }
 
 export async function saveReminderConfig(config: ReminderConfig): Promise<void> {
   const db = getFirestore()
   config.updatedAt = new Date().toISOString()
   await db.collection('config').doc('reminders').set(config)
+  invalidateReminderConfig()
 }
 
 function renderMessage(tpl: string, vars: Record<string, string>): string {
@@ -112,24 +126,26 @@ export async function scheduleReminders(deliveryId: string, delivery: VideoDeliv
   const db = getFirestore()
   const base = new Date(deliveredAt).getTime()
   const steps = cfg.reminders.filter(r => r.enabled).sort((a, b) => a.order - b.order).slice(0, cfg.maxReminders)
-  for (let i = 0; i < steps.length; i++) {
-    const step = steps[i]
-    const scheduledAt = new Date(base + step.triggerMinutes * 60 * 1000).toISOString()
-    const sr: ScheduledReminder = {
-      deliveryId,
-      phone: delivery.phone,
-      employeeName: delivery.employeeName || delivery.clientName,
-      videoTitle: delivery.videoTitle,
-      videoUrl: delivery.videoUrl,
-      moduleNumber: delivery.moduleNumber,
-      message: step.message,
-      reminderNumber: i + 1,
-      scheduledAt,
-      sentAt: null,
-      status: 'scheduled',
-    }
-    await db.collection('scheduledReminders').add(sr)
-  }
+  // One round trip instead of one per reminder (this runs before the bot reply).
+  await Promise.all(
+    steps.map((step, i) => {
+      const scheduledAt = new Date(base + step.triggerMinutes * 60 * 1000).toISOString()
+      const sr: ScheduledReminder = {
+        deliveryId,
+        phone: delivery.phone,
+        employeeName: delivery.employeeName || delivery.clientName,
+        videoTitle: delivery.videoTitle,
+        videoUrl: delivery.videoUrl,
+        moduleNumber: delivery.moduleNumber,
+        message: step.message,
+        reminderNumber: i + 1,
+        scheduledAt,
+        sentAt: null,
+        status: 'scheduled',
+      }
+      return db.collection('scheduledReminders').add(sr)
+    })
+  )
 }
 
 export async function cancelReminders(deliveryId: string): Promise<void> {
@@ -147,8 +163,10 @@ export async function cancelReminders(deliveryId: string): Promise<void> {
 
 export async function markDeliveryComplete(deliveryId: string): Promise<void> {
   const db = getFirestore()
-  await db.collection('videoDeliveries').doc(deliveryId).update({ status: 'completed', completedAt: new Date().toISOString() })
-  await cancelReminders(deliveryId)
+  await Promise.all([
+    db.collection('videoDeliveries').doc(deliveryId).update({ status: 'completed', completedAt: new Date().toISOString() }),
+    cancelReminders(deliveryId),
+  ])
 }
 
 export async function getPendingDelivery(phone: string): Promise<(VideoDelivery & { id: string }) | null> {
