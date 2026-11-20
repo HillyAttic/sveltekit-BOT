@@ -185,11 +185,26 @@ export async function processDueReminders(): Promise<{ processed: number; sent: 
   const now = new Date().toISOString()
   const snap = await db.collection('scheduledReminders').where('status', '==', 'scheduled').get()
   const due = snap.docs.filter(d => (d.data() as ScheduledReminder).scheduledAt <= now)
+  // After a cron outage every missed reminder is due at once. Only the newest per
+  // delivery is still worth sending; the rest would be a burst of identical nags.
+  const latestByDelivery = new Map<string, (typeof due)[number]>()
+  for (const d of due) {
+    const sr = d.data() as ScheduledReminder
+    const current = latestByDelivery.get(sr.deliveryId)
+    if (!current || (current.data() as ScheduledReminder).scheduledAt < sr.scheduledAt) {
+      latestByDelivery.set(sr.deliveryId, d)
+    }
+  }
   let processed = 0, sent = 0, failed = 0, cancelled = 0
   const cfg = await getReminderConfig()
   for (const d of due) {
     processed++
     const sr = d.data() as ScheduledReminder
+    if (latestByDelivery.get(sr.deliveryId) !== d) {
+      await d.ref.update({ status: 'cancelled' })
+      cancelled++
+      continue
+    }
     // check completion
     const deliverySnap = await db.collection('videoDeliveries').doc(sr.deliveryId).get()
     const delivery = deliverySnap.exists ? (deliverySnap.data() as VideoDelivery) : null

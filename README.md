@@ -24,9 +24,11 @@ npm run build && npx wrangler deploy
 npx wrangler secret put CRON_SECRET   # once — cron endpoint auth
 ```
 
-`postbuild` appends a `scheduled` handler to adapter-cloudflare's worker (it only
-exports `fetch` by default), so the every-minute `triggers.crons` in `wrangler.jsonc`
-runs `/api/cron/reminders` — due certificate PDFs and reminders are sent from there.
+`vite.config.ts` wraps the Cloudflare adapter and appends a `scheduled` handler to
+the worker it writes (the adapter only exports `fetch` by default), so the
+every-minute `triggers.crons` in `wrangler.jsonc` runs `/api/cron/reminders` — due
+certificate PDFs and reminders are sent from there. Deploying without this handler
+makes every cron tick fail with "Handler does not export a scheduled() function".
 
 ## Structure
 
