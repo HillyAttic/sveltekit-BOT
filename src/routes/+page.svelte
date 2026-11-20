@@ -40,18 +40,18 @@
         <div class="relative">
           <div class="w-16 h-16 rounded-none bg-ink flex items-center justify-center shadow-bold">
             <svg class="w-8 h-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={1.5}>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 00-.491 6.347A48.62 48.62 0 0112 20.904a48.62 48.62 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.636 50.636 0 00-2.658-.813A59.906 59.906 0 0112 3.493a59.903 59.903 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
             </svg>
           </div>
           <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-accent"></div>
         </div>
         <div class="pt-2">
           <span class="eyebrow block mb-1">Admin Portal</span>
-          <h1 class="text-4xl font-display font-bold text-ink tracking-tight leading-none">JPCO<span class="text-accent">.</span></h1>
+          <h1 class="text-4xl font-display font-bold text-ink tracking-tight leading-none">Edventure<span class="text-accent">.</span></h1>
         </div>
       </div>
       <div class="accent-line pl-3">
-        <p class="text-sm text-ink-secondary font-medium">WhatsApp Document Retrieval System</p>
+        <p class="text-sm text-ink-secondary font-medium">WhatsApp Learning Bot</p>
         <p class="text-xs text-ink-muted mt-0.5">Sign in to your admin account to continue</p>
       </div>
     </div>
@@ -73,7 +73,7 @@
             id="email"
             type="email"
             bind:value={email}
-            placeholder="admin@jpco.com"
+            placeholder="admin@edventure.com"
             class="w-full px-4 py-3 bg-surface border-2 border-ink/10 rounded-none text-sm text-ink placeholder:text-ink-muted focus:outline-none focus:border-accent focus:ring-0 transition-all font-mono"
             required
             disabled={loading}
@@ -111,7 +111,7 @@
     </div>
 
     <p class="text-center text-[11px] text-ink-muted mt-6 animate-fade-in">
-      JPCO &copy; {new Date().getFullYear()} — WhatsApp Bot v2.0
+      Edventure &copy; {new Date().getFullYear()} — Learning Bot v2.0
     </p>
   </div>
 </div>

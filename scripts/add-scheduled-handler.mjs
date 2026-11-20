@@ -24,6 +24,7 @@ for (const required of ['const initialized = server.init(', 'server.respond(']) 
 src += `
 ${MARK}
 export async function scheduled(event, env, ctx) {
+	console.log('cron: scheduled fired', new Date().toISOString());
 	if (!env.CRON_SECRET) {
 		console.error('CRON_SECRET is not set — run: npx wrangler secret put CRON_SECRET');
 		return;
@@ -36,6 +37,7 @@ export async function scheduled(event, env, ctx) {
 		const res = await server.respond(new Request(url), {
 			getClientAddress: () => '127.0.0.1'
 		});
+		console.log('cron: reminders route responded', res.status);
 		if (!res.ok) console.error('cron run failed:', res.status, await res.text());
 	} catch (error) {
 		console.error('cron run failed:', error);
