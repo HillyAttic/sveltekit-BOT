@@ -1,7 +1,7 @@
 /**
  * Admin video upload: browser PUTs the file straight to a signed Firebase
- * Storage URL (no big body through the Worker), and the stored link is a stable
- * app URL that redirects to a fresh signed URL on every click, so it never rots.
+ * Storage URL (no big body through the Worker), then the stored link is the
+ * permanent Firebase download URL from /api/admin/download-url.
  */
 
 export function videoStoragePath(fileName: string, now = Date.now()): string {
@@ -12,14 +12,21 @@ export function videoStoragePath(fileName: string, now = Date.now()): string {
   return `learning-videos/${now}-${safe || 'video'}`
 }
 
-export function videoLink(filePath: string, origin: string): string {
-  return `${origin}/api/video/${filePath.split('/').map(encodeURIComponent).join('/')}`
+/** Storage path inside an old /api/video/ redirect link, else null. */
+export function storagePathFromLink(link: string): string | null {
+  try {
+    const pathname = new URL(link).pathname
+    return pathname.startsWith('/api/video/')
+      ? decodeURIComponent(pathname.slice('/api/video/'.length))
+      : null
+  } catch {
+    return null
+  }
 }
 
 export async function uploadVideo(
   file: File,
   token: string | null,
-  origin: string,
   onProgress?: (pct: number) => void
 ): Promise<string> {
   const contentType = file.type || 'application/octet-stream'
@@ -49,5 +56,11 @@ export async function uploadVideo(
     xhr.send(file)
   })
 
-  return videoLink(filePath, origin)
+  const link = await fetch('/api/admin/download-url', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filePath }),
+  })
+  if (!link.ok) throw new Error('Could not create the download link')
+  return ((await link.json()) as { url: string }).url
 }

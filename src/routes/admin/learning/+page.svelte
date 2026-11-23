@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import { listData, createData, deleteData, updateData } from '#lib/admin-data'
   import { auth } from '#lib/auth.svelte'
-  import { uploadVideo } from '#lib/video-upload'
+  import { uploadVideo, storagePathFromLink } from '#lib/video-upload'
 
   interface Video { id: string; title: string; videoUrl: string; moduleNumber?: string; description?: string }
   interface Assessment { id: string; title: string; moduleId?: string }
@@ -35,12 +35,23 @@
     editingId = null; title = ''; videoUrl = ''; moduleNumber = ''; description = ''
   }
 
-  function edit(v: Video) {
+  async function edit(v: Video) {
     editingId = v.id
     title = v.title
     videoUrl = v.videoUrl
     moduleNumber = v.moduleNumber ?? ''
     description = v.description ?? ''
+    // Old entries hold the /api/video/ redirect link: swap in the Firebase link.
+    const filePath = storagePathFromLink(v.videoUrl)
+    if (!filePath) return
+    try {
+      const res = await fetch('/api/admin/download-url', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + auth.getToken(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath }),
+      })
+      if (res.ok && editingId === v.id) videoUrl = ((await res.json()) as { url: string }).url
+    } catch { /* keep the existing link */ }
   }
 
   async function save() {
@@ -67,7 +78,7 @@
     uploading = true
     progress = 0
     try {
-      videoUrl = await uploadVideo(file, auth.getToken(), location.origin, (p) => (progress = p))
+      videoUrl = await uploadVideo(file, auth.getToken(), (p) => (progress = p))
       if (!title.trim()) title = file.name.replace(/\.[^.]+$/, '')
       showToast('Uploaded — click Add Video to save')
     } catch (err) {

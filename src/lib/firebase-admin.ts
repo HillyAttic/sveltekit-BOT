@@ -422,6 +422,24 @@ export class StorageFile {
     }
   }
 
+  /** Permanent Firebase download URL; mints an object token if it has none. */
+  async getDownloadUrl(): Promise<string> {
+    const objectUrl = `${STORAGE_BASE}/storage/v1/b/${this.bucket.name}/o/${encodeURIComponent(this.path)}`
+    const res = await authedFetch(objectUrl)
+    if (!res.ok) throw new Error(`GET ${this.path} metadata failed: ${res.status} ${await res.text()}`)
+    const { metadata = {} } = (await res.json()) as { metadata?: Record<string, string> }
+
+    let token = metadata.firebaseStorageDownloadTokens?.split(',')[0]
+    if (!token) {
+      token = crypto.randomUUID()
+      await jsonRequest(objectUrl, {
+        method: 'PATCH',
+        body: JSON.stringify({ metadata: { ...metadata, firebaseStorageDownloadTokens: token } }),
+      })
+    }
+    return `https://firebasestorage.googleapis.com/v0/b/${this.bucket.name}/o/${encodeURIComponent(this.path)}?alt=media&token=${token}`
+  }
+
   async getSignedUrl(opts: {
     version?: string
     action: 'read' | 'write' | 'delete' | 'resumable'

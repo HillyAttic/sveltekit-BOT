@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { videoStoragePath, videoLink } from '#lib/video-upload'
+import { videoStoragePath, storagePathFromLink } from '#lib/video-upload'
 
 describe('videoStoragePath', () => {
   it('builds a sanitized path under learning-videos', () => {
@@ -13,10 +13,15 @@ describe('videoStoragePath', () => {
   })
 })
 
-describe('videoLink', () => {
-  it('encodes each segment and points at the redirect route', () => {
-    expect(videoLink('learning-videos/1-a b.mp4', 'https://app.test')).toBe(
-      'https://app.test/api/video/learning-videos/1-a%20b.mp4'
+describe('storagePathFromLink', () => {
+  it('extracts and decodes the path from an /api/video/ redirect link', () => {
+    expect(storagePathFromLink('https://app.test/api/video/learning-videos/1-a%20b.mp4')).toBe(
+      'learning-videos/1-a b.mp4'
     )
+  })
+
+  it('returns null for other links', () => {
+    expect(storagePathFromLink('https://edventurehub-my.sharepoint.com/personal/x')).toBeNull()
+    expect(storagePathFromLink('not a url')).toBeNull()
   })
 })
