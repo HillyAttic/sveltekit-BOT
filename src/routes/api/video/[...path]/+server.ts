@@ -6,5 +6,5 @@ import { generateSignedUrl } from '#lib/storage-service'
 // signed read URL, so links sent over WhatsApp keep working past the 1h expiry.
 export const GET: RequestHandler = async ({ params }) => {
   if (!params.path?.startsWith('learning-videos/')) throw error(404, 'Not found')
-  return redirect(302, await generateSignedUrl(params.path))
+  return redirect(302, await generateSignedUrl(params.path), { external: true })
 }
