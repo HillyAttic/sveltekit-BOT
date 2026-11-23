@@ -27,11 +27,16 @@ export const MESSAGE_GROUPS = [
 
 export const MESSAGE_DEFS: MessageDef[] = [
   {
+    key: 'regWelcome',
+    group: 'Greeting & registration',
+    label: 'Welcome message (sent before the first question)',
+    default: "Welcome to Edventure! Let's get started with your learning journey.",
+  },
+  {
     key: 'regEmployeeIdPrompt',
     group: 'Greeting & registration',
-    label: 'First message — asks for Employee ID',
-    default:
-      "Welcome to Edventure! Let's get started with your learning journey.\n\nPlease provide the following details.\n\n1/4 — Employee ID:",
+    label: 'Registration 1/4 — Employee ID',
+    default: 'Please provide the following details.\n\n1/4 — Employee ID:',
   },
   {
     key: 'regNamePrompt',

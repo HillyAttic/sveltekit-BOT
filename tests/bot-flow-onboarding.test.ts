@@ -94,6 +94,8 @@ describe('updated WhatsApp flow', () => {
   it('registers an employee, validates input, records consent and sends the first video', async () => {
     let step = await processMessage('91999', 'hi', null, undefined, null)
     expect(step.session?.currentStep).toBe('registration_employeeId')
+    expect(step.preMessages?.join('\n')).toContain('Welcome to Edventure')
+    expect(step.message).not.toContain('Welcome')
     expect(step.message).toContain('Employee ID')
 
     step = await processMessage('91999', 'bad id!', step.session, undefined, null)
@@ -189,6 +191,8 @@ describe('updated WhatsApp flow', () => {
     expect(resetProgress).toHaveBeenCalledWith('91999', 'EMP-42')
     expect(resetProfile).toHaveBeenCalledWith('91999')
     expect(step.session?.currentStep).toBe('registration_employeeId')
+    expect(step.preMessages?.join('\n')).toContain('Welcome to Edventure')
+    expect(step.message).not.toContain('Welcome')
     expect(step.message).toContain('Employee ID')
     expect(step.session?.registrationClientId).toBe('u1')
   })
@@ -196,6 +200,8 @@ describe('updated WhatsApp flow', () => {
   it('restart sends an unregistered user back to registration', async () => {
     const step = await processMessage('91999', 'restart', null, undefined, null)
     expect(step.session?.currentStep).toBe('registration_employeeId')
+    expect(step.preMessages?.join('\n')).toContain('Welcome to Edventure')
+    expect(step.message).not.toContain('Welcome')
     expect(step.message).toContain('Employee ID')
   })
 

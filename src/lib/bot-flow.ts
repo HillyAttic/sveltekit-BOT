@@ -237,7 +237,8 @@ function beginRegistration(user?: BotUser | null): FlowResult {
     registration: {},
     registrationClientId: user?.id,
   })
-  return askRegistration(fresh, 'employeeId')
+  // Welcome is its own message so it lands separately from the first question.
+  return { ...askRegistration(fresh, 'employeeId'), preMessages: [fill('regWelcome')] }
 }
 
 async function beginJourney(phone: string, employee: EmployeeInfo): Promise<FlowResult> {
