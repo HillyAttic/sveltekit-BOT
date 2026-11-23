@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { listData, createData, deleteData, updateData } from '#lib/admin-data'
+  import { auth } from '#lib/auth.svelte'
+  import { uploadVideo } from '#lib/video-upload'
 
   interface Video { id: string; title: string; videoUrl: string; moduleNumber?: string; description?: string }
   interface Assessment { id: string; title: string; moduleId?: string }
@@ -14,6 +16,9 @@
   let loading = $state(true)
   let saving = $state(false)
   let toast = $state<string | null>(null)
+  let fileInput = $state<HTMLInputElement>()
+  let uploading = $state(false)
+  let progress = $state(0)
 
   function showToast(m: string) { toast = m; setTimeout(() => (toast = null), 2500) }
 
@@ -54,6 +59,24 @@
 
   async function remove(id: string) { await deleteData('learningModules', id); await load() }
 
+  async function pickVideo(e: Event) {
+    const input = e.currentTarget as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ''
+    if (!file) return
+    uploading = true
+    progress = 0
+    try {
+      videoUrl = await uploadVideo(file, auth.getToken(), location.origin, (p) => (progress = p))
+      if (!title.trim()) title = file.name.replace(/\.[^.]+$/, '')
+      showToast('Uploaded — click Add Video to save')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      uploading = false
+    }
+  }
+
   onMount(load)
 </script>
 
@@ -64,12 +87,20 @@
     <h3 class="font-semibold text-ink">{editingId ? 'Edit Video' : 'Add Video'}</h3>
     <input bind:value={title} placeholder="Video title" class="w-full px-3 py-2 border rounded text-sm" />
     <input bind:value={videoUrl} placeholder="Video link (https://…)" class="w-full px-3 py-2 border rounded text-sm" />
+    <div class="flex items-center gap-3">
+      <input bind:this={fileInput} type="file" accept="video/*" onchange={pickVideo} class="hidden" />
+      <button type="button" onclick={() => fileInput?.click()} disabled={uploading}
+        class="px-3 py-1.5 text-xs font-medium border border-surface-border rounded hover:bg-surface disabled:opacity-50">
+        {uploading ? `Uploading… ${progress}%` : 'Upload video'}
+      </button>
+      <span class="text-[11px] text-ink-muted">or paste a link above</span>
+    </div>
     <div class="grid grid-cols-2 gap-3">
       <input bind:value={moduleNumber} placeholder="Module number" class="px-3 py-2 border rounded text-sm" />
       <input bind:value={description} placeholder="Description (optional)" class="px-3 py-2 border rounded text-sm" />
     </div>
     <div class="flex gap-2">
-      <button onclick={save} disabled={saving} class="px-4 py-2 text-sm font-medium bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving…' : editingId ? 'Save changes' : 'Add Video'}</button>
+      <button onclick={save} disabled={saving || uploading} class="px-4 py-2 text-sm font-medium bg-accent text-white rounded disabled:opacity-50">{saving ? 'Saving…' : editingId ? 'Save changes' : 'Add Video'}</button>
       {#if editingId}<button onclick={reset} class="px-4 py-2 text-sm border border-surface-border rounded">Cancel</button>{/if}
     </div>
   </div>

@@ -142,7 +142,11 @@ async function handleMessage(parsed: {
     const command = sanitizedText.toLowerCase().trim()
     const isGreeting = command === 'hi' || command === 'hello'
     const isRestart = command === 'restart' || command === 'start over' || command === 'reset'
-    const botText = result.interactive?.body ?? result.message
+    const botTexts = [
+      ...(result.preMessages ?? []),
+      result.interactive?.body ?? result.message,
+    ].filter(Boolean)
+    const botText = botTexts.join('\n\n')
 
     // Persist session + transcript while the WhatsApp reply is in flight — the
     // user must not wait for logging.
@@ -163,6 +167,8 @@ async function handleMessage(parsed: {
         clientName: result.session?.employee?.name ?? user?.name,
       }),
     ]).catch((error) => console.error('Failed to persist bot state:', error))
+
+    for (const text of result.preMessages ?? []) await sendMessage(from, text)
 
     if (result.interactive) {
       if (result.interactive.type === 'button') {

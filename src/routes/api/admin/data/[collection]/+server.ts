@@ -14,6 +14,8 @@ const ALLOWED = new Set([
   'cities',
   'zones',
   'settings',
+  // Bot copy (config/botMessages) is edited from Admin → Bot Messages.
+  'config',
 ])
 
 function allowed(collection: string): boolean {

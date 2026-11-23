@@ -47,6 +47,8 @@ vi.mock('#lib/learning-service', async (importOriginal) => {
       moduleAvailable ? { id: 'm1', title: 'Intro Video', videoUrl: 'https://v/1', moduleNumber: '1' } : null,
     saveAssessmentResult: (...args: any[]) => saveResult(...args),
     resetEmployeeProgress: (...args: any[]) => resetProgress(...args),
+    // Blank overrides → bot-flow falls back to the compiled-in defaults.
+    getBotCopy: async () => ({ messages: {}, insertions: [] }),
   }
 })
 

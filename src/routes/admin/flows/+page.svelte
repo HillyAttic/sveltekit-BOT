@@ -79,6 +79,7 @@
     <div>
       <h2 class="text-xl font-semibold text-ink">User Flows</h2>
       <p class="text-xs text-ink-muted">One entry per Hi → completion run, with exact step times (IST).</p>
+      <a href="/admin/messages" class="text-xs text-accent hover:underline">Customise the bot's messages →</a>
     </div>
     <input
       bind:value={query}

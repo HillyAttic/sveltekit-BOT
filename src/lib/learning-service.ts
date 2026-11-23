@@ -1,3 +1,4 @@
+import { DEFAULT_MESSAGES, isBotInsertion, type BotInsertion } from './bot-messages'
 import { getFirestore } from './firebase-admin'
 import { normalizePhone } from './phone'
 
@@ -55,6 +56,36 @@ export function getRegistrationConfig(): Promise<{
     } catch (error) {
       console.error('[learning] registration config read failed, using defaults:', error)
       return { employeeIdPattern: DEFAULT_EMPLOYEE_ID_PATTERN, consentVersion: 'v1' }
+    }
+  })
+}
+
+/* ------------------------------ bot copy --------------------------------- */
+
+/**
+ * Admin-edited bot copy (`config/botMessages`): text overrides merged over the
+ * defaults in bot-messages.ts, plus extra messages inserted between flow steps.
+ */
+export function getBotCopy(): Promise<{
+  messages: Record<string, string>
+  insertions: BotInsertion[]
+}> {
+  return cached('bot-messages', 60_000, async () => {
+    try {
+      const doc = await getFirestore().collection('config').doc('botMessages').get()
+      const stored = doc.exists ? (doc.data() ?? {}) : {}
+      const overrides = Object.fromEntries(
+        Object.entries(stored).filter(
+          ([key, v]) => key !== 'insertions' && typeof v === 'string' && v.trim() !== ''
+        )
+      ) as Record<string, string>
+      const insertions = Array.isArray(stored.insertions)
+        ? stored.insertions.filter(isBotInsertion)
+        : []
+      return { messages: { ...DEFAULT_MESSAGES, ...overrides }, insertions }
+    } catch (error) {
+      console.error('[bot] message copy read failed, using defaults:', error)
+      return { messages: { ...DEFAULT_MESSAGES }, insertions: [] }
     }
   })
 }

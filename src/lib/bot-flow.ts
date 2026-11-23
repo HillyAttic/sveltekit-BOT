@@ -1,3 +1,4 @@
+import { DEFAULT_MESSAGES, renderMessage, withInsertions, type BotInsertion } from './bot-messages'
 import { issueCertificateIfComplete } from './certificate-service'
 import { resetUserProfile, saveUserProfile, type UserProfile } from './document-service'
 import {
@@ -5,6 +6,7 @@ import {
   evaluateQuestions,
   getActiveModules,
   getAssessmentForModule,
+  getBotCopy,
   getCities,
   getNextModule,
   getQuestionsByIds,
@@ -24,8 +26,16 @@ import {
 } from './reminder-service'
 import { DEFAULT_SESSION_TIMEOUT_MINUTES, getSessionTimeoutMs } from './session-config'
 
-// Refreshed at the start of every processMessage call (Admin → Settings).
+// Refreshed at the start of every processMessage call.
 let sessionTtlMs = DEFAULT_SESSION_TIMEOUT_MINUTES * 60 * 1000
+// Admin-editable copy (Admin → Bot Messages), also refreshed per message.
+let T: Record<string, string> = { ...DEFAULT_MESSAGES }
+let insertions: BotInsertion[] = []
+
+function fill(key: string, vars?: Record<string, string | number>): string {
+  const body = renderMessage(T[key] ?? DEFAULT_MESSAGES[key] ?? '', vars)
+  return withInsertions(key, body, insertions, vars)
+}
 
 export interface EmployeeInfo extends EmployeeDetails {
   id?: string
@@ -77,6 +87,8 @@ export type InteractivePayload =
 
 export interface FlowResult {
   message: string
+  /** Extra text messages sent before the main reply (e.g. intro, then question). */
+  preMessages?: string[]
   interactive?: InteractivePayload
   session: BotSession | null
 }
@@ -88,21 +100,17 @@ type ProfileField = 'employeeId' | 'name' | 'city' | 'managerName'
 
 const PROFILE_FIELDS: ProfileField[] = ['employeeId', 'name', 'managerName', 'city']
 
-const PROFILE_PROMPTS: Record<ProfileField, string> = {
-  employeeId:
-    "Welcome to Edventure! Let's get started with your learning journey.\n\nPlease provide the following details.\n\n1/4 — Employee ID:",
-  name: '2/4 — Employee Name:',
-  managerName: '3/4 — Manager Name:',
-  city: '4/4 — City:',
+const PROFILE_PROMPT_KEYS: Record<ProfileField, string> = {
+  employeeId: 'regEmployeeIdPrompt',
+  name: 'regNamePrompt',
+  managerName: 'regManagerNamePrompt',
+  city: 'regCityPrompt',
 }
 
-const CONSENT_TEXT =
-  'Do you consent to Edventure recording and processing your registration information for managing your learning journey and assessments?'
-
 const CONSENT_BUTTONS = [
-  { id: 'consent_yes', title: 'YES - I Consent' },
+  { id: 'consent_yes', titleKey: 'consentYesButton' },
   // WhatsApp rejects reply button titles over 20 characters.
-  { id: 'consent_no', title: 'NO - Do Not Consent' },
+  { id: 'consent_no', titleKey: 'consentNoButton' },
 ]
 
 function isRegistered(user?: BotUser | null): boolean {
@@ -131,17 +139,23 @@ function createSession(
 }
 
 function askRegistration(session: BotSession, field: ProfileField, note?: string): FlowResult {
+  const prompt = fill(PROFILE_PROMPT_KEYS[field])
   return {
-    message: note ? `${note}\n\n${PROFILE_PROMPTS[field]}` : PROFILE_PROMPTS[field],
+    message: note ? `${note}\n\n${prompt}` : prompt,
     session: { ...session, currentStep: `registration_${field}` },
   }
 }
 
 function consentPrompt(session: BotSession, note?: string): FlowResult {
-  const body = note ? `${note}\n\n${CONSENT_TEXT}` : CONSENT_TEXT
+  const prompt = fill('consentPrompt')
+  const body = note ? `${note}\n\n${prompt}` : prompt
   return {
     message: body,
-    interactive: { type: 'button', body, buttons: CONSENT_BUTTONS },
+    interactive: {
+      type: 'button',
+      body,
+      buttons: CONSENT_BUTTONS.map((b) => ({ id: b.id, title: truncate(fill(b.titleKey), 20) })),
+    },
     session: { ...session, currentStep: 'consent' },
   }
 }
@@ -165,27 +179,20 @@ function truncate(str: string, max: number): string {
 // a publicly reachable MP4 — switch to a video/document message when hosting
 // guarantees that.
 function videoPrompt(module: LearningModule): string {
-  const heading = module.moduleNumber
-    ? `Module ${module.moduleNumber}: ${module.title}`
-    : module.title
-  return [
-    "Welcome to Edventure! Let's continue your learning journey. Here is your learning video for today.",
-    '',
-    heading,
-    ...(module.description ? [module.description] : []),
-    ...(module.videoUrl ? ['', `Watch here: ${module.videoUrl}`] : []),
-    '',
-    'Please watch the complete video and type FINISH once you have completed watching it.',
-  ].join('\n')
+  return fill('videoPrompt', {
+    moduleHeading: module.moduleNumber
+      ? `Module ${module.moduleNumber}: ${module.title}`
+      : module.title,
+    description: module.description ?? '',
+    videoUrl: module.videoUrl ?? '',
+  })
 }
 
 function pendingPrompt(pending: VideoDelivery): string {
-  return [
-    `Your learning video "${pending.videoTitle}" is still pending.`,
-    ...(pending.videoUrl ? ['', `Watch here: ${pending.videoUrl}`] : []),
-    '',
-    'Please watch the complete video and type FINISH once you have completed watching it.',
-  ].join('\n')
+  return fill('pendingPrompt', {
+    videoTitle: pending.videoTitle,
+    videoUrl: pending.videoUrl ?? '',
+  })
 }
 
 async function deliverModule(
@@ -196,8 +203,7 @@ async function deliverModule(
   if (!module) {
     // ponytail: certificate PDFs are not generated yet; only announce completion.
     return {
-      message:
-        'You have completed all available learning modules.\n\nYour certificate will be shared with you once it has been generated.',
+      message: fill('allModulesDone'),
       session: createSession('done', { employee }),
     }
   }
@@ -261,9 +267,9 @@ async function startAssessment(
   const questionIds = assessment?.questionIds ?? []
 
   if (!assessment || questionIds.length === 0) {
-    const done = `Great job! Your video "${pending.videoTitle}" has been marked as completed.`
+    const done = fill('videoCompleted', { videoTitle: pending.videoTitle })
     if (!employee) {
-      return { message: `${done}\n\nPlease type Hi to continue.`, session: null }
+      return { message: `${done}\n\n${fill('continueHi')}`, session: null }
     }
     const next = await deliverNextVideo(phone, employee)
     return { ...next, message: `${done}\n\n${next.message}` }
@@ -271,9 +277,9 @@ async function startAssessment(
 
   const questions = await getQuestionsByIds(questionIds)
   if (questions.length === 0) {
-    const done = `Great job! Your video "${pending.videoTitle}" has been marked as completed.`
+    const done = fill('videoCompleted', { videoTitle: pending.videoTitle })
     if (!employee) {
-      return { message: `${done}\n\nPlease type Hi to continue.`, session: null }
+      return { message: `${done}\n\n${fill('continueHi')}`, session: null }
     }
     const next = await deliverNextVideo(phone, employee)
     return { ...next, message: `${done}\n\n${next.message}` }
@@ -300,11 +306,8 @@ async function startAssessment(
     2 * 60 * 60 * 1000
   )
 
-  return questionResult(
-    phone,
-    session,
-    "Congratulations! You have completed the learning video. Now let's test your understanding."
-  )
+  // Intro and question are separate WhatsApp messages: the intro alone first.
+  return { ...(await questionResult(phone, session)), preMessages: [fill('assessmentIntro')] }
 }
 
 async function questionResult(
@@ -319,16 +322,16 @@ async function questionResult(
   // Question list changed underneath us — submit what we have.
   if (!question) return finishAssessment(phone, session)
 
-  const body = [
-    ...(prefix ? [`${prefix}`, ''] : []),
-    `Question ${state.index + 1} of ${state.questionIds.length}`,
-    '',
-    question.text,
-  ].join('\n')
+  const frame = fill('questionFrame', {
+    index: state.index + 1,
+    total: state.questionIds.length,
+    questionText: question.text,
+  })
+  const body = prefix ? `${prefix}\n\n${frame}` : frame
 
   const options = questionOptions(question)
   if (options.length === 0) {
-    return { message: `${body}\n\nType your answer.`, session }
+    return { message: `${body}\n\n${fill('typeAnswerHint')}`, session }
   }
 
   return {
@@ -336,7 +339,7 @@ async function questionResult(
     interactive: {
       type: 'list',
       body,
-      buttonText: 'Answer',
+      buttonText: truncate(fill('answerButton'), 20),
       sections: [
         {
           title: 'Options',
@@ -364,21 +367,17 @@ async function answerQuestion(
 
   if (options.length > 0) {
     if (!interactiveReplyId?.startsWith('opt_')) {
-      return questionResult(phone, session, 'Please choose one of the options.')
+      return questionResult(phone, session, fill('chooseOption'))
     }
     const index = Number(interactiveReplyId.slice(4))
     if (!Number.isInteger(index) || index < 0 || index >= options.length) {
-      return questionResult(phone, session, 'Please choose one of the options.')
+      return questionResult(phone, session, fill('chooseOption'))
     }
     answer = interactiveReplyId
   } else {
-    if (!raw) return questionResult(phone, session, 'Please type your answer.')
+    if (!raw) return questionResult(phone, session, fill('pleaseTypeAnswer'))
     if (raw.length > 2000) {
-      return questionResult(
-        phone,
-        session,
-        'Your answer is too long. Please keep it under 2000 characters.'
-      )
+      return questionResult(phone, session, fill('answerTooLong'))
     }
     answer = raw
   }
@@ -399,7 +398,11 @@ async function answerQuestion(
 function retakePrompt(body: string, session: BotSession): FlowResult {
   return {
     message: body,
-    interactive: { type: 'button', body, buttons: [{ id: 'retake_yes', title: 'Retake Test' }] },
+    interactive: {
+      type: 'button',
+      body,
+      buttons: [{ id: 'retake_yes', title: truncate(fill('retakeButton'), 20) }],
+    },
     session: { ...session, currentStep: 'awaiting_retake' },
   }
 }
@@ -408,7 +411,7 @@ async function finishAssessment(phone: string, session: BotSession): Promise<Flo
   const state = session.assessment!
   const employee = session.employee
   if (!employee) {
-    return { message: 'Your session has expired. Please type Hi to continue.', session: null }
+    return { message: fill('sessionExpired'), session: null }
   }
 
   const questions = await getQuestionsByIds(state.questionIds)
@@ -432,29 +435,29 @@ async function finishAssessment(phone: string, session: BotSession): Promise<Flo
   } catch (error) {
     console.error('[assessment] Failed to save result:', error)
     return {
-      message: 'Your assessment was submitted, but the result could not be saved. Please contact your administrator.',
+      message: fill('resultSaveFailed'),
       session: createSession('done', { employee }),
     }
   }
 
-  const lines = [
-    `Your ${state.title} is complete!`,
-    '',
-    `Total Marks: ${evaluation.totalMarks}`,
-    `Marks Obtained: ${evaluation.marksObtained}`,
-    `Percentage: ${evaluation.percentage}%`,
-    `Result: ${evaluation.result === 'PENDING' ? 'PENDING EVALUATION' : evaluation.result}`,
-  ]
+  const result = fill('resultBody', {
+    assessmentTitle: state.title,
+    totalMarks: evaluation.totalMarks,
+    marksObtained: evaluation.marksObtained,
+    percentage: evaluation.percentage,
+    result: evaluation.result === 'PENDING' ? 'PENDING EVALUATION' : evaluation.result,
+  })
 
   if (evaluation.result === 'PENDING') {
-    lines.push('', 'Your answers have been submitted and will be reviewed by your manager.')
-    return { message: lines.join('\n'), session: createSession('done', { employee }) }
+    return {
+      message: `${result}\n\n${fill('resultPendingNote')}`,
+      session: createSession('done', { employee }),
+    }
   }
 
   if (evaluation.result === 'FAIL') {
-    lines.push('', 'You did not meet the passing percentage. Tap Retake Test to try again.')
     return retakePrompt(
-      lines.join('\n'),
+      `${result}\n\n${fill('retakeOffer')}`,
       createSession('awaiting_retake', { employee, assessment: state })
     )
   }
@@ -467,23 +470,27 @@ async function finishAssessment(phone: string, session: BotSession): Promise<Flo
     try {
       const issued = await issueCertificateIfComplete(phone, employee)
       if (issued) {
-        lines.push(
-          '',
-          'Congratulations! You have completed every learning module.',
-          issued.created
-            ? `Your certificate has been generated — Certificate ID ${issued.certificate.certificateNumber}.`
-            : `Your certificate is already issued — Certificate ID ${issued.certificate.certificateNumber}.`
-        )
-        return { message: lines.join('\n'), session: next.session }
+        return {
+          message: [
+            result,
+            fill('allDone'),
+            fill(issued.created ? 'certificateGenerated' : 'certificateExisting', {
+              certificateNumber: issued.certificate.certificateNumber,
+            }),
+          ].join('\n\n'),
+          session: next.session,
+        }
       }
     } catch (error) {
       console.error('[assessment] certificate issue failed:', error)
     }
-    return { message: `${lines.join('\n')}\n\n${next.message}`, session: next.session }
+    return { message: `${result}\n\n${next.message}`, session: next.session }
   }
 
-  lines.push('', 'Congratulations! You are ready for the next learning module.')
-  return { message: `${lines.join('\n')}\n\n${next.message}`, session: next.session }
+  return {
+    message: `${result}\n\n${fill('nextModule')}\n\n${next.message}`,
+    session: next.session,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -496,7 +503,10 @@ export async function processMessage(
   interactiveReplyId?: string,
   user?: BotUser | null
 ): Promise<FlowResult> {
-  sessionTtlMs = await getSessionTimeoutMs()
+  const [ttlMs, copy] = await Promise.all([getSessionTimeoutMs(), getBotCopy()])
+  sessionTtlMs = ttlMs
+  T = copy.messages
+  insertions = copy.insertions
   const raw = text.trim()
   const input = interactiveReplyId ? interactiveReplyId.trim() : raw.toLowerCase()
   const step = session?.currentStep
@@ -506,10 +516,7 @@ export async function processMessage(
   if (input === 'finish' && step !== 'assessment_question') {
     const pending = await getPendingDelivery(phone)
     if (!pending) {
-      return {
-        message: 'You have no pending learning video. Type Hi to continue your journey.',
-        session,
-      }
+      return { message: fill('noPendingVideo'), session }
     }
     await markDeliveryComplete(pending.id!)
     return startAssessment(phone, pending, user ?? session?.employee ?? null)
@@ -536,10 +543,10 @@ export async function processMessage(
         },
         2 * 60 * 60 * 1000
       )
-      return questionResult(phone, fresh, 'Retaking the assessment. Good luck!')
+      return { ...(await questionResult(phone, fresh)), preMessages: [fill('retakeStart')] }
     }
     return retakePrompt(
-      'You did not meet the passing percentage. Tap Retake Test when you are ready to try again.',
+      fill('retakeAgain'),
       createSession('awaiting_retake', { employee: session.employee, assessment })
     )
   }
@@ -586,10 +593,7 @@ export async function processMessage(
         clientId = await saveUserProfile(phone, session.registrationClientId ?? null, profile)
       } catch (error) {
         console.error('[registration] Failed to save profile:', error)
-        return {
-          message: 'Sorry, we could not save your details. Please try again later.',
-          session,
-        }
+        return { message: fill('saveFailed'), session }
       }
 
       const employee: EmployeeInfo = {
@@ -604,11 +608,7 @@ export async function processMessage(
     }
 
     if (input === 'consent_no') {
-      return {
-        message:
-          'Thank you for your time. Your registration details have not been saved and your learning journey will not be started.',
-        session: null,
-      }
+      return { message: fill('consentDeclined'), session: null }
     }
 
     return consentPrompt(session)
@@ -620,17 +620,13 @@ export async function processMessage(
     const registration = { ...session.registration }
 
     if (!raw || raw.length > 100) {
-      return askRegistration(session, field, 'That entry looks invalid. Please try again.')
+      return askRegistration(session, field, fill('regInvalidEntry'))
     }
 
     if (field === 'employeeId') {
       const config = await getRegistrationConfig()
       if (!validEmployeeId(raw, config.employeeIdPattern)) {
-        return askRegistration(
-          session,
-          field,
-          'That Employee ID format is not valid. Please enter it again.'
-        )
+        return askRegistration(session, field, fill('regInvalidEmployeeId'))
       }
       registration.employeeId = raw
     }
@@ -647,7 +643,7 @@ export async function processMessage(
           return askRegistration(
             session,
             'city',
-            `City not recognised. Available cities: ${cities.map((c) => c.name).join(', ')}`
+            fill('regInvalidCity', { cities: cities.map((c) => c.name).join(', ') })
           )
         }
         registration.city = match.name
@@ -666,7 +662,10 @@ export async function processMessage(
     const updated = { ...session, registration }
     const cityNote =
       field === 'city'
-        ? `Thank you! Your registered city is ${registration.city}, and your assigned zone is ${registration.zone || 'Not assigned'}.`
+        ? fill('regCityAssigned', {
+            city: registration.city ?? '',
+            zone: registration.zone || 'Not assigned',
+          })
         : undefined
 
     if (nextField) return askRegistration(updated, nextField, cityNote)
@@ -689,7 +688,7 @@ export async function processMessage(
   }
 
   return {
-    message: "Please send 'Hi' to start.",
+    message: fill('fallback'),
     session: null,
   }
 }

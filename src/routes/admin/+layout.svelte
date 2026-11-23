@@ -14,6 +14,7 @@
     ['Certificate Management', '/admin/certificates'],
     ['Reminder Management', '/admin/reminders'],
     ['User Flows', '/admin/flows'],
+    ['Bot Messages', '/admin/messages'],
     ['Reports & Analytics', '/admin/reports'],
     ['City & Zone', '/admin/cityzone'],
     ['Settings', '/admin/settings'],
