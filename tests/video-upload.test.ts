@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { videoStoragePath, storagePathFromLink } from '#lib/video-upload'
+import { videoStoragePath, storagePathFromLink, videoWatchPath } from '#lib/video-upload'
 import { videoWatchUrl } from '#lib/video-links'
 
 describe('videoStoragePath', () => {
@@ -32,6 +32,15 @@ describe('storagePathFromLink', () => {
   it('returns null for other links', () => {
     expect(storagePathFromLink('https://edventurehub-my.sharepoint.com/personal/x')).toBeNull()
     expect(storagePathFromLink('not a url')).toBeNull()
+  })
+})
+
+describe('videoWatchPath', () => {
+  it('maps a storage link to the in-app player path', () => {
+    const firebase =
+      'https://firebasestorage.googleapis.com/v0/b/b/o/learning-videos%2F1-a.mp4?alt=media&token=x'
+    expect(videoWatchPath(firebase)).toBe('/watch/learning-videos/1-a.mp4')
+    expect(videoWatchPath('https://youtu.be/abc')).toBeNull()
   })
 })
 

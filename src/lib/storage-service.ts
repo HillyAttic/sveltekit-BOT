@@ -19,13 +19,6 @@ export async function generateSignedUrl(
 }
 
 /**
- * Permanent firebasestorage.googleapis.com download URL for a file.
- */
-export async function generateDownloadUrl(filePath: string): Promise<string> {
-  return getStorage().bucket().file(filePath).getDownloadUrl()
-}
-
-/**
  * Delete a file from Firebase Storage.
  */
 export async function deleteFile(filePath: string): Promise<void> {

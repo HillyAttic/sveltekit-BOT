@@ -1,7 +1,7 @@
 /**
  * Admin video upload: browser PUTs the file straight to a signed Firebase
- * Storage URL (no big body through the Worker), then the stored link is the
- * permanent Firebase download URL from /api/admin/download-url.
+ * Storage URL (no big body through the Worker). The stored link is the app's
+ * player page, never the raw file (which always offers Download).
  */
 
 export function videoStoragePath(fileName: string, now = Date.now()): string {
@@ -10,6 +10,16 @@ export function videoStoragePath(fileName: string, now = Date.now()): string {
     .replace(/[^\w.-]+/g, '_')
     .replace(/^[._]+/, '')
   return `learning-videos/${now}-${safe || 'video'}`
+}
+
+function watchPath(storagePath: string): string {
+  return '/watch/' + storagePath.split('/').map(encodeURIComponent).join('/')
+}
+
+/** Player-page link (`/watch/…`) for a stored video link, else null. */
+export function videoWatchPath(link: string): string | null {
+  const path = storagePathFromLink(link)
+  return path ? watchPath(path) : null
 }
 
 /** Storage path inside a stored video link, else null. */
@@ -64,11 +74,5 @@ export async function uploadVideo(
     xhr.send(file)
   })
 
-  const link = await fetch('/api/admin/download-url', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filePath }),
-  })
-  if (!link.ok) throw new Error('Could not create the download link')
-  return ((await link.json()) as { url: string }).url
+  return watchPath(filePath)
 }

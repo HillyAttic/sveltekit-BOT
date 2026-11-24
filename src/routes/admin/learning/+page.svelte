@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import { listData, createData, deleteData, updateData } from '#lib/admin-data'
   import { auth } from '#lib/auth.svelte'
-  import { uploadVideo, storagePathFromLink } from '#lib/video-upload'
+  import { uploadVideo, videoWatchPath } from '#lib/video-upload'
 
   interface Video { id: string; title: string; videoUrl: string; moduleNumber?: string; description?: string }
   interface Assessment { id: string; title: string; moduleId?: string }
@@ -35,23 +35,13 @@
     editingId = null; title = ''; videoUrl = ''; moduleNumber = ''; description = ''
   }
 
-  async function edit(v: Video) {
+  function edit(v: Video) {
     editingId = v.id
     title = v.title
-    videoUrl = v.videoUrl
+    // Storage-backed entries open the no-download player, not the raw file.
+    videoUrl = videoWatchPath(v.videoUrl) ?? v.videoUrl
     moduleNumber = v.moduleNumber ?? ''
     description = v.description ?? ''
-    // Old entries hold the /api/video/ redirect link: swap in the Firebase link.
-    const filePath = storagePathFromLink(v.videoUrl)
-    if (!filePath) return
-    try {
-      const res = await fetch('/api/admin/download-url', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + auth.getToken(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath }),
-      })
-      if (res.ok && editingId === v.id) videoUrl = ((await res.json()) as { url: string }).url
-    } catch { /* keep the existing link */ }
   }
 
   async function save() {
@@ -127,7 +117,7 @@
             <tr class="border-t border-surface-border">
               <td class="px-3 py-2">{v.moduleNumber || '—'}</td>
               <td class="px-3 py-2">{v.title}{#if v.description}<div class="text-[11px] text-ink-muted">{v.description}</div>{/if}</td>
-              <td class="px-3 py-2"><a href={v.videoUrl} target="_blank" rel="noopener" class="text-accent hover:underline text-xs truncate block max-w-[280px]">{v.videoUrl}</a></td>
+              <td class="px-3 py-2"><a href={videoWatchPath(v.videoUrl) ?? v.videoUrl} target="_blank" rel="noopener" class="text-accent hover:underline text-xs truncate block max-w-[280px]">{videoWatchPath(v.videoUrl) ?? v.videoUrl}</a></td>
               <td class="px-3 py-2 text-xs">
                 {#if assessments.find((a) => a.moduleId === v.id)}
                   {assessments.find((a) => a.moduleId === v.id)!.title}

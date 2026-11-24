@@ -1,16 +1,17 @@
-import { storagePathFromLink } from './video-upload'
+import { videoWatchPath } from './video-upload'
 
 const FALLBACK_SITE = 'https://sveltekit-bot.websculptorsofficial.workers.dev'
 
 /**
- * What employees receive. Storage videos become the in-app player page, so no
- * direct file URL (which always offers Download) is ever handed out. External
- * links (YouTube, SharePoint…) pass through untouched.
+ * Absolute link for WhatsApp. Storage videos and app-relative links resolve to
+ * the player page, so no direct file URL (which always offers Download) is
+ * ever handed out. External links (YouTube, SharePoint…) pass through.
  */
 export function videoWatchUrl(link?: string): string {
   if (!link) return ''
-  const path = storagePathFromLink(link)
-  if (!path) return link
+  if (link.startsWith('//')) return link
   const base = (process.env.SITE_URL || FALLBACK_SITE).replace(/\/+$/, '')
-  return `${base}/watch/${path.split('/').map(encodeURIComponent).join('/')}`
+  const watch = videoWatchPath(link)
+  if (watch) return base + watch
+  return link.startsWith('/') ? base + link : link
 }
