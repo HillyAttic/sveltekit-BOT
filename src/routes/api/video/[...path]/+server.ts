@@ -1,10 +1,10 @@
 import { error, redirect } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
-import { generateSignedUrl } from '#lib/storage-service'
 
-// Stable public link stored on learning modules: each visit mints a fresh
-// signed read URL, so links sent over WhatsApp keep working past the 1h expiry.
+// Stable links already sent over WhatsApp point here; send them to the player
+// page instead of the raw file (which offers Download) or a Firebase URL.
 export const GET: RequestHandler = async ({ params }) => {
   if (!params.path?.startsWith('learning-videos/')) throw error(404, 'Not found')
-  return redirect(302, await generateSignedUrl(params.path), { external: true })
+  const path = params.path.split('/').map(encodeURIComponent).join('/')
+  return redirect(302, `/watch/${path}`)
 }

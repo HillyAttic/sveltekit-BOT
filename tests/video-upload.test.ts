@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { videoStoragePath, storagePathFromLink } from '#lib/video-upload'
+import { videoWatchUrl } from '#lib/video-links'
 
 describe('videoStoragePath', () => {
   it('builds a sanitized path under learning-videos', () => {
@@ -20,8 +21,32 @@ describe('storagePathFromLink', () => {
     )
   })
 
+  it('extracts the path from a Firebase download URL', () => {
+    expect(
+      storagePathFromLink(
+        'https://firebasestorage.googleapis.com/v0/b/bot-edventure.firebasestorage.app/o/learning-videos%2F1-a.mp4?alt=media&token=x'
+      )
+    ).toBe('learning-videos/1-a.mp4')
+  })
+
   it('returns null for other links', () => {
     expect(storagePathFromLink('https://edventurehub-my.sharepoint.com/personal/x')).toBeNull()
     expect(storagePathFromLink('not a url')).toBeNull()
+  })
+})
+
+describe('videoWatchUrl', () => {
+  afterEach(() => { delete process.env.SITE_URL })
+
+  it('rewrites storage links to the in-app player, never the raw file', () => {
+    process.env.SITE_URL = 'https://app.test'
+    const firebase =
+      'https://firebasestorage.googleapis.com/v0/b/b/o/learning-videos%2F1-a%20b.mp4?alt=media&token=x'
+    expect(videoWatchUrl(firebase)).toBe('https://app.test/watch/learning-videos/1-a%20b.mp4')
+  })
+
+  it('leaves external links untouched', () => {
+    expect(videoWatchUrl('https://youtu.be/abc')).toBe('https://youtu.be/abc')
+    expect(videoWatchUrl(undefined)).toBe('')
   })
 })

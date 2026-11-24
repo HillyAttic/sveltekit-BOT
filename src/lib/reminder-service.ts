@@ -2,6 +2,7 @@ import { getFirestore } from './firebase-admin'
 import { sendMessage } from './message-sender'
 import { normalizePhone } from './phone'
 import { recordChatActivity } from './chat-logger'
+import { videoWatchUrl } from './video-links'
 
 export interface ReminderStep {
   id: string
@@ -227,7 +228,7 @@ export async function processDueReminders(): Promise<{ processed: number; sent: 
       module: sr.moduleNumber || '',
       reminderNumber: String(sr.reminderNumber),
     })
-    if (sr.videoUrl) message += '\n\nWatch here: ' + sr.videoUrl
+    if (sr.videoUrl) message += '\n\nWatch here: ' + videoWatchUrl(sr.videoUrl)
     try {
       // ponytail: plain text only; outside WhatsApp's 24h window this needs an
       // approved template message. Add a template lookup here when that matters.

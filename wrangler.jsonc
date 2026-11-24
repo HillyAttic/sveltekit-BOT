@@ -14,6 +14,8 @@
   // Every minute: sends due certificate PDFs and scheduled reminders.
   "triggers": { "crons": ["* * * * *"] },
   "vars": {
-    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": "bot-edventure.firebasestorage.app"
+    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": "bot-edventure.firebasestorage.app",
+    // Base for employee links sent over WhatsApp (video player pages).
+    "SITE_URL": "https://sveltekit-bot.websculptorsofficial.workers.dev"
   }
 }

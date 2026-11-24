@@ -25,6 +25,7 @@ import {
   type VideoDelivery,
 } from './reminder-service'
 import { DEFAULT_SESSION_TIMEOUT_MINUTES, getSessionTimeoutMs } from './session-config'
+import { videoWatchUrl } from './video-links'
 
 // Refreshed at the start of every processMessage call.
 let sessionTtlMs = DEFAULT_SESSION_TIMEOUT_MINUTES * 60 * 1000
@@ -184,14 +185,14 @@ function videoPrompt(module: LearningModule): string {
       ? `Module ${module.moduleNumber}: ${module.title}`
       : module.title,
     description: module.description ?? '',
-    videoUrl: module.videoUrl ?? '',
+    videoUrl: videoWatchUrl(module.videoUrl),
   })
 }
 
 function pendingPrompt(pending: VideoDelivery): string {
   return fill('pendingPrompt', {
     videoTitle: pending.videoTitle,
-    videoUrl: pending.videoUrl ?? '',
+    videoUrl: videoWatchUrl(pending.videoUrl),
   })
 }
 

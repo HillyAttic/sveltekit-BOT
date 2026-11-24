@@ -12,13 +12,21 @@ export function videoStoragePath(fileName: string, now = Date.now()): string {
   return `learning-videos/${now}-${safe || 'video'}`
 }
 
-/** Storage path inside an old /api/video/ redirect link, else null. */
+/** Storage path inside a stored video link, else null. */
 export function storagePathFromLink(link: string): string | null {
   try {
-    const pathname = new URL(link).pathname
-    return pathname.startsWith('/api/video/')
-      ? decodeURIComponent(pathname.slice('/api/video/'.length))
-      : null
+    const url = new URL(link)
+    const pathname = url.pathname
+    if (pathname.startsWith('/api/video/')) {
+      return decodeURIComponent(pathname.slice('/api/video/'.length))
+    }
+    // Firebase download URL: https://firebasestorage.googleapis.com/v0/b/<bucket>/o/<encoded path>?…
+    const encoded = pathname.match(/^\/v0\/b\/[^/]+\/o\/(.+)$/)?.[1]
+    if (encoded) {
+      const path = decodeURIComponent(encoded)
+      if (path.startsWith('learning-videos/')) return path
+    }
+    return null
   } catch {
     return null
   }

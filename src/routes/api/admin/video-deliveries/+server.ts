@@ -5,6 +5,7 @@ import { verifyAdminToken, unauthorizedResponse } from '#lib/auth-middleware'
 import { recordVideoDelivery, markDeliveryComplete, cancelReminders } from '#lib/reminder-service'
 import { sendMessage } from '#lib/message-sender'
 import { normalizePhone } from '#lib/phone'
+import { videoWatchUrl } from '#lib/video-links'
 
 export const GET: RequestHandler = async ({ request }) => {
   const auth = await verifyAdminToken(request)
@@ -32,7 +33,7 @@ export const POST: RequestHandler = async ({ request }) => {
     // Deliver the video link to the employee. Delivery is recorded even when
     // WhatsApp is not configured locally; the reminder clock has already started.
     let deliveryMessage = `Hi ${body.employeeName || 'there'}! Here is your learning video: ${body.videoTitle}.`
-    if (body.videoUrl) deliveryMessage += `\n\nWatch here: ${body.videoUrl}`
+    if (body.videoUrl) deliveryMessage += `\n\nWatch here: ${videoWatchUrl(body.videoUrl)}`
     deliveryMessage += '\n\nType FINISH once you have completed the video.'
     let sent = false
     try {
