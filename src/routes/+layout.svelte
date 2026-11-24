@@ -4,12 +4,11 @@
 
   let { children }: { children: Snippet } = $props()
 
+  // The PWA is gone, but browsers that loaded the old build still have its
+  // service worker (and cached pages). Unregister it once so they refresh.
+  // ponytail: delete this after the first deploy — no new SW can be installed.
   onMount(() => {
-    if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch((error) => {
-        console.error('Service Worker registration failed:', error)
-      })
-    }
+    navigator.serviceWorker?.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()))
   })
 </script>
 
