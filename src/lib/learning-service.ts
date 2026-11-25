@@ -167,19 +167,15 @@ export function getActiveModules(): Promise<LearningModule[]> {
 }
 
 async function getCompletedModuleKeys(phone: string): Promise<Set<string>> {
-  // Short cache — completions are rare, but a single conversation can call this
-  // several times (Hi, finish, assessment flows). 15 s covers back-to-back msgs.
-  return cached(`completed:${phone}`, 15_000, async () => {
-    const snap = await getFirestore()
-      .collection('videoDeliveries')
-      .where('phone', '==', normalizePhone(phone))
-      .get()
-    return new Set(
-      snap.docs
-        .filter((d) => d.data().status === 'completed')
-        .map((d) => String(d.data().moduleNumber ?? d.data().videoTitle))
-    )
-  })
+  const snap = await getFirestore()
+    .collection('videoDeliveries')
+    .where('phone', '==', normalizePhone(phone))
+    .get()
+  return new Set(
+    snap.docs
+      .filter((d) => d.data().status === 'completed')
+      .map((d) => String(d.data().moduleNumber ?? d.data().videoTitle))
+  )
 }
 
 /** First active module whose video the employee has not completed. */
@@ -191,23 +187,20 @@ export async function getNextModule(phone: string): Promise<LearningModule | nul
 /**
  * The assessment explicitly mapped to this video in the Assessment Builder,
  * or null when the video has none (the bot then just moves to the next video).
- * Cached for 30 s — assessments rarely change mid-conversation.
  */
 export async function getAssessmentForModule(
   module: LearningModule | null
 ): Promise<Assessment | null> {
   if (!module) return null
-  return cached(`assessment:${module.id}`, 30_000, async () => {
-    const snap = await getFirestore().collection('assessments').get()
-    const assessments = snap.docs.map((d) => ({ ...(d.data() as Omit<Assessment, 'id'>), id: d.id }))
-    return (
-      assessments.find((a) => a.moduleId === module.id) ??
-      (module.moduleNumber
-        ? assessments.find((a) => String(a.moduleNumber ?? '') === String(module.moduleNumber))
-        : undefined) ??
-      null
-    )
-  })
+  const snap = await getFirestore().collection('assessments').get()
+  const assessments = snap.docs.map((d) => ({ ...(d.data() as Omit<Assessment, 'id'>), id: d.id }))
+  return (
+    assessments.find((a) => a.moduleId === module.id) ??
+    (module.moduleNumber
+      ? assessments.find((a) => String(a.moduleNumber ?? '') === String(module.moduleNumber))
+      : undefined) ??
+    null
+  )
 }
 
 export function getQuestionsByIds(ids: string[]): Promise<Question[]> {

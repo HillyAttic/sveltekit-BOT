@@ -209,10 +209,7 @@ async function deliverModule(
     }
   }
 
-  // Fire-and-forget: the write must not block the user's reply. A follow-up
-  // message arrives seconds later (user read + typing time), plenty for the
-  // Firestore write to land.
-  recordVideoDelivery({
+  await recordVideoDelivery({
     phone,
     clientId: employee.id,
     clientName: employee.name,
@@ -221,7 +218,7 @@ async function deliverModule(
     videoUrl: module.videoUrl,
     moduleNumber: module.moduleNumber,
     deliveredAt: new Date().toISOString(),
-  }).catch((e) => console.error('[deliverModule] recordVideoDelivery failed:', e))
+  })
 
   return {
     message: videoPrompt(module),

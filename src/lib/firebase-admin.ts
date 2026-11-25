@@ -378,11 +378,6 @@ export const getFirestore = (): Firestore => {
   return firestore
 }
 
-// Warm the OAuth token at module load so the first webhook request doesn't pay
-// the JWT-sign + token-endpoint latency (~1 s on a cold isolate).
-// Fire-and-forget: if it fails, the first real call will retry inline.
-getAccessToken().catch(() => {})
-
 /* ------------------------------- storage ------------------------------- */
 
 const bucketName = () =>

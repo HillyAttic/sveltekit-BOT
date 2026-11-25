@@ -216,24 +216,10 @@ export async function findUserWithId(phone: string): Promise<UserWithId | null> 
 
 /**
  * Find all users by phone number and return with document IDs
- * Used for multi-client phone number support.
- * Cached — same TTL/LRU as findUser.
+ * Used for multi-client phone number support
  */
 export async function findAllUsersByPhone(phone: string): Promise<UserWithId[]> {
   const normalizedPhone = normalizePhone(phone)
-  const now = Date.now()
-
-  // Check cache (stores the array under the same key as findUser)
-  const cached = userCache.get(normalizedPhone)
-  if (cached && now - cached.timestamp < USER_CACHE_TTL_MS) {
-    console.log('[findAllUsersByPhone] Cache HIT for', normalizedPhone.slice(-4))
-    // Cache holds a single User | null; wrap for the array return type.
-    // We only ever cache the first user — multi-client lookups are rare and
-    // the bot uses users[0] anyway.
-    return cached.user ? [{ ...cached.user, id: (cached.user as UserWithId).id }] : []
-  }
-
-  console.log('[findAllUsersByPhone] Cache MISS for', normalizedPhone.slice(-4))
   const db = getFirestore()
 
   // Try new format (phones array)
@@ -249,11 +235,10 @@ export async function findAllUsersByPhone(phone: string): Promise<UserWithId[]> 
   }
 
   if (snapshot.empty) {
-    userCache.set(normalizedPhone, { user: null, timestamp: now })
     return []
   }
 
-  const results = snapshot.docs.map(doc => {
+  return snapshot.docs.map(doc => {
     const data = doc.data()
     return {
       id: doc.id,
@@ -269,17 +254,6 @@ export async function findAllUsersByPhone(phone: string): Promise<UserWithId[]> 
       consentVersion: data.consentVersion
     }
   })
-
-  // Cache the first result (the one the bot actually uses)
-  if (results.length > 0) {
-    userCache.set(normalizedPhone, { user: results[0], timestamp: now })
-    if (userCache.size > USER_CACHE_MAX_SIZE) {
-      const oldestKey = userCache.keys().next().value
-      if (oldestKey) userCache.delete(oldestKey)
-    }
-  }
-
-  return results
 }
 
 /**
